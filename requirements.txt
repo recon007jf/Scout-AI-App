@@ -1,0 +1,14 @@
+streamlit
+pandas
+requests
+python-dotenv
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+google-generativeai
+st-gsheets-connection
+msal
+beautifulsoup4
+lxml
+tenacity
