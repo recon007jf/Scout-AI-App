@@ -30,6 +30,7 @@ def test_lead(name, intel):
     print("1. Analyzing...")
     analysis = analyze_lead(intel, name, "Test Firm")
     print(json.dumps(analysis, indent=2))
+    print(f"\nEvidence: {analysis.get('Archetype_Evidence', 'N/A')}")
     
     print("\n2. Writing Email...")
     email = write_email(analysis, name.split()[1]) # Pass "Controller" or "Guardian" as first name

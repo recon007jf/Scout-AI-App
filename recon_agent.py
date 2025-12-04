@@ -130,10 +130,12 @@ def analyze_lead(raw_intel, name, firm):
     1. IGNORE "Welcome user" or login text.
     2. Analyze their content (Podcasts, Posts) to find their TRUE driver.
     3. If unsure, default to 'The Guardian' (safest bet).
+    4. OUTPUT MUST BE VALID JSON. Do not use single quotes for keys. Escape any quotes inside strings.
     
     Return a JSON object with:
     - 'psych_profile': (One of: "The Controller", "The Social Climber", "The Guardian", "The Analyst")
     - 'Unconscious_Desire': (A short phrase explaining WHAT they really want)
+    - 'Archetype_Evidence': (A specific quote, post topic, or behavior from the intel that justifies this Archetype. e.g. "Posted about 'Winning the President's Club award' 3 times.")
     - 'Hook': (A specific sentence referencing their recent content/interview. If none, reference their role.)
     - 'Pain_Points': [List of 2 likely challenges based on their Archetype]
     - 'Podcast_Name': (Name of their podcast if they host one, else null)
@@ -210,6 +212,7 @@ def process_single_lead(i, row, headers, sheet):
         # Convert JSON to readable text for the sheet
         dossier_text = f"""Archetype: {clean(analysis.get('psych_profile', 'Unknown'))}
 Driver: {clean(analysis.get('Unconscious_Desire', 'Unknown'))}
+Evidence: {clean(analysis.get('Archetype_Evidence', 'N/A'))}
 Hook: {clean(analysis.get('Hook', 'N/A'))}
 Pain Points:
 - {clean(analysis.get('Pain_Points', [''])[0])}

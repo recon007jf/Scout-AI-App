@@ -27,6 +27,12 @@
     - [x] Update `write_email` to accept `first_name`
     - [x] Update prompt to enforce "Hi {first_name}"
     - [x] Update `process_single_lead` to pass name
+- [x] Improve Login UX
+    - [x] Wrap login inputs in `st.form` to enable "Enter" key submission
+- [x] Add Archetype Evidence
+    - [x] Update `analyze_lead` to extract evidence/quotes
+    - [x] Update `process_single_lead` to save evidence to dossier
+    - [x] Regenerate all leads with new evidence
 - [x] Save to GitHub
     - [x] Create .gitignore
     - [x] Initialize repo and commit

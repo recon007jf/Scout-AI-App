@@ -28,9 +28,11 @@ We need more signal to find these deep drivers. We will add specific Serper sear
     - Updated `write_email` to use Archetype-specific strategies and hooks.
     - Added extraction of **Podcast Name** and **URL**.
     - Enforced personalized salutations ("Hi {First Name}").
+    - Added **Archetype Evidence** field to justify psychological profiling with quotes/behavior.
     - Hardened JSON parsing logic.
 
 #### [MODIFY] [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py)
 - Replaced DISC badge with **Archetype Badge** (Color-coded).
 - Added **Archetype Legend** to the sidebar.
 - Added **Podcast Host** section to lead details.
+- Improved Login UX (Enter key submission).

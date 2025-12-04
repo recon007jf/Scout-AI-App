@@ -30,9 +30,11 @@ def check_password():
         return True
 
     st.markdown("### 🔒 Login Required")
-    pwd = st.text_input("Enter Password:", type="password")
+    with st.form("login_form"):
+        pwd = st.text_input("Enter Password:", type="password")
+        submitted = st.form_submit_button("Log In")
     
-    if st.button("Log In"):
+    if submitted:
         if pwd == "scout2025":  # Simple hardcoded password
             st.session_state.password_correct = True
             st.rerun()
