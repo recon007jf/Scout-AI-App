@@ -42,6 +42,9 @@
 - [x] Implement Budget Safety Guard
     - [x] Add `SAFETY_LIMIT` constant to `recon_agent.py`
     - [x] Enforce max leads per run (default 50)
+- [x] Add Bulk Regeneration UI
+    - [x] Add "Bulk Actions" section to Sidebar
+    - [x] Implement "Regenerate Incomplete Leads" button (Batch process)
 - [x] Save to GitHub
     - [x] Create .gitignore
     - [x] Initialize repo and commit

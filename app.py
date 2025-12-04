@@ -8,6 +8,7 @@ import base64
 from recon_agent import process_single_lead, get_google_sheet_client, GOOGLE_SHEET_NAME, WORKSHEET_NAME
 from dotenv import load_dotenv
 import re
+import time
 
 # Load environment variables
 load_dotenv()
@@ -151,9 +152,52 @@ def main():
         """, unsafe_allow_html=True)
 
         st.markdown("---")
+        st.markdown("### ⚡️ Actions")
+        
         if st.button("🔄 Refresh Data"):
             st.cache_data.clear()
             st.rerun()
+            
+        if st.button("♻️ Fix Incomplete Leads"):
+            with st.spinner("Scanning and repairing..."):
+                # Connect to sheet
+                client = get_google_sheet_client()
+                if client:
+                    sheet = client.open(GOOGLE_SHEET_NAME).worksheet(WORKSHEET_NAME)
+                    data = sheet.get_all_records()
+                    headers = sheet.row_values(1)
+                    
+                    fixed_count = 0
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Identify incomplete rows
+                    incomplete_indices = []
+                    for idx, row in enumerate(data):
+                        dossier = row.get('Dossier Summary', '')
+                        email = row.get('Draft Email', '')
+                        if "Archetype: Unknown" in dossier or not dossier or not email:
+                            incomplete_indices.append(idx)
+                    
+                    total_incomplete = len(incomplete_indices)
+                    
+                    if total_incomplete == 0:
+                        st.success("✅ No incomplete leads found!")
+                    else:
+                        for i, idx in enumerate(incomplete_indices):
+                            row = data[idx]
+                            full_name = f"{row.get('First Name', '')} {row.get('Last Name', '')}"
+                            status_text.text(f"Fixing {i+1}/{total_incomplete}: {full_name}")
+                            
+                            # Row index in sheet is idx + 2
+                            process_single_lead(idx + 2, row, headers, sheet)
+                            fixed_count += 1
+                            progress_bar.progress((i + 1) / total_incomplete)
+                            
+                        st.success(f"✅ Fixed {fixed_count} leads!")
+                        time.sleep(2)
+                        st.cache_data.clear()
+                        st.rerun()
 
     # Main Content
     df = load_data()
