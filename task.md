@@ -57,7 +57,7 @@
     - [x] Combine with Email Edit for a unified "Manual Updates" form
     - [x] Create .gitignore
     - [x] Initialize repo and commit
-    - [x] Push to remote
+
 - [ ] Integrate Serper API
     - [x] Install python-dotenv
     - [x] Create .env for API key
@@ -122,6 +122,14 @@
     - [x] Fix agent.py (saving Title instead of URL?)
     - [x] Update recon_agent.py Prompt (Ignore "Welcome user" / login text)
     - [x] Re-run Recon for Kevin Overbey (and full list) - DONE (Some 429 errors on emails)
+- [ ] Refine Search Accuracy
+    - [ ] Update search queries to include "Present" to target current role
+    - [x] Update analysis prompt to explicitly filter for target firm
+- [x] Implement Automated Data Integrity Audit
+    - [x] Create `integrity_check.py` to re-verify all leads
+    - [x] Logic: Compare "Target Firm" vs. "Extracted Current Firm" from LinkedIn
+    - [x] Auto-flag mismatches for review or auto-regenerate
+    - [x] Add "Run Integrity Check" to Dashboard Sidebar
 
 ## Next Steps (Tomorrow)
 - [ ] Review final list for any missing emails (due to rate limits)

@@ -17,21 +17,21 @@
     - [x] Verify mobile responsiveness (Streamlit default)
 - [x] Implement Bernays Protocol (Deep Intelligence)
     - [x] Expand [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py) gathering (Podcasts, News, Speaking)
-    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#131-177) with Archetype Prompt (Controller, Social Climber, Guardian, Analyst)
+    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#132-179) with Archetype Prompt (Controller, Social Climber, Guardian, Analyst)
     - [x] Update [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) to display Archetype Badges & Legend
     - [x] Verify on test lead
 - [x] Add Podcast Details
     - [x] Update [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py) to extract & save Podcast Name/URL
     - [x] Update [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) to display "🎙️ Podcast Host" section
 - [x] Personalize Email Salutations
-    - [x] Update [write_email](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#178-201) to accept `first_name`
+    - [x] Update [write_email](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#180-203) to accept `first_name`
     - [x] Update prompt to enforce "Hi {first_name}"
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to pass name
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#237-331) to pass name
 - [x] Improve Login UX
     - [x] Wrap login inputs in `st.form` to enable "Enter" key submission
 - [x] Add Archetype Evidence
-    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#131-177) to extract evidence/quotes
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to save evidence to dossier
+    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#132-179) to extract evidence/quotes
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#237-331) to save evidence to dossier
     - [x] Regenerate all leads with new evidence
 - [x] Beautify Dossier Display
     - [x] Parse dossier text into structured data
@@ -46,8 +46,8 @@
     - [x] Add "Bulk Actions" section to Sidebar
     - [x] Implement "Regenerate Incomplete Leads" button (Batch process)
 - [x] Implement Email Guessing & Explanation
-    - [x] Add [guess_email_logic](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#202-234) to [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py)
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to populate missing emails with Guess + Reason
+    - [x] Add [guess_email_logic](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#204-236) to [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py)
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#237-331) to populate missing emails with Guess + Reason
     - [x] Beautify display in [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) (Bold Email, Italic Reason)
 - [x] Implement Manual Email Override
     - [x] Add "Edit Email" input field to [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) lead details
@@ -57,7 +57,7 @@
     - [x] Combine with Email Edit for a unified "Manual Updates" form
     - [x] Create .gitignore
     - [x] Initialize repo and commit
-    - [x] Push to remote
+
 - [ ] Integrate Serper API
     - [x] Install python-dotenv
     - [x] Create .env for API key
@@ -122,6 +122,14 @@
     - [x] Fix agent.py (saving Title instead of URL?)
     - [x] Update recon_agent.py Prompt (Ignore "Welcome user" / login text)
     - [x] Re-run Recon for Kevin Overbey (and full list) - DONE (Some 429 errors on emails)
+- [ ] Refine Search Accuracy
+    - [ ] Update search queries to include "Present" to target current role
+    - [x] Update analysis prompt to explicitly filter for target firm
+- [x] Implement Automated Data Integrity Audit
+    - [x] Create [integrity_check.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/integrity_check.py) to re-verify all leads
+    - [x] Logic: Compare "Target Firm" vs. "Extracted Current Firm" from LinkedIn
+    - [x] Auto-flag mismatches for review or auto-regenerate
+    - [x] Add "Run Integrity Check" to Dashboard Sidebar
 
 ## Next Steps (Tomorrow)
 - [ ] Review final list for any missing emails (due to rate limits)

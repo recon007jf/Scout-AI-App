@@ -42,3 +42,4 @@ We need more signal to find these deep drivers. We will add specific Serper sear
 - **Bulk Actions UI**: Added a sidebar tool to automatically scan and regenerate all incomplete leads in one click.
 - **Email Guessing**: Implemented logic to guess missing emails using AI and provide a reason. Display is beautified with bold text for the email and italics for the explanation.
 - **Manual Updates**: Added a unified "Manual Updates" form to allow users to edit both Email and LinkedIn URL directly in the dashboard.
+- **Data Integrity Audit**: Created an automated `integrity_check.py` script and dashboard button to verify that each lead's current role matches the target firm, flagging mismatches for review.

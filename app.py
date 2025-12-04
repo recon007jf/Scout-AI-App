@@ -201,6 +201,17 @@ def main():
                         time.sleep(2)
                         st.cache_data.clear()
                         st.rerun()
+                        
+        if st.button("🛡️ Run Integrity Check"):
+            with st.spinner("Auditing database for role mismatches..."):
+                from integrity_check import run_integrity_audit
+                issues = run_integrity_audit()
+                if issues == 0:
+                    st.success("✅ All leads verified! No mismatches found.")
+                else:
+                    st.warning(f"⚠️ Found {issues} leads with role mismatches. Check logs/sheet.")
+                    st.cache_data.clear()
+                    st.rerun()
 
     # Main Content
     df = load_data()
@@ -340,12 +351,13 @@ def main():
                         guess_email = parts[0].strip()
                         reason = parts[1].replace("(Reason:", "").replace(")", "").strip() if len(parts) > 1 else "Reason unknown"
                         
-                        st.markdown(f"**Email:** <span style='font-weight: bold; color: #d32f2f;'>{guess_email}</span>", unsafe_allow_html=True)
-                        st.markdown(f"<div style='font-size: 0.9rem; color: #666; font-style: italic; margin-top: -10px; margin-bottom: 10px;'>{reason}</div>", unsafe_allow_html=True)
+                        # Format: email.address.com - [guess]
+                        st.markdown(f"**Email:** <span style='font-weight: bold; color: #d32f2f;'>{guess_email} - [guess]</span>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='font-size: 0.9rem; color: #666; font-style: italic; margin-top: -10px; margin-bottom: 10px;'>Reason: {reason}</div>", unsafe_allow_html=True)
                     except:
-                        st.markdown(f"**Email:** `{email_val}`")
+                        st.markdown(f"**Email:** <span style='font-weight: bold; color: #d32f2f;'>{email_val}</span>", unsafe_allow_html=True)
                 else:
-                    st.markdown(f"**Email:** `{email_val}`")
+                    st.markdown(f"**Email:** <span style='font-weight: bold; color: #d32f2f;'>{email_val}</span>", unsafe_allow_html=True)
                 
                 st.markdown(f"**LinkedIn:** {row.get('LinkedIn URL', 'N/A')}")
                 

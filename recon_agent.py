@@ -99,12 +99,13 @@ def gather_intel(name, firm, existing_linkedin_url=None):
     if existing_linkedin_url and 'linkedin.com/in/' in existing_linkedin_url:
         bio_query = f'site:{existing_linkedin_url}'
     else:
-        bio_query = f'site:linkedin.com/in/ "{name}" "{firm}"'
+        # Strict search for CURRENT role at TARGET firm
+        bio_query = f'site:linkedin.com/in/ "{name}" "{firm}" "Present"'
     
     bio_text = search_serper(bio_query)
     
     # 2. Recent Activity
-    posts_query = f'site:linkedin.com/posts/ "{name}"'
+    posts_query = f'site:linkedin.com/posts/ "{name}" "{firm}"'
     posts_text = search_serper(posts_query)
     
     # 3. Articles
@@ -143,9 +144,10 @@ def analyze_lead(raw_intel, name, firm):
     4. The 'Analyst' (Conscientious/Logic): Trusts data, skeptical of marketing. Wants proof. Keywords: "Charts", "Transparency", "Fiduciary Duty", "Analytics".
     
     CRITICAL INSTRUCTIONS:
-    1. IGNORE "Welcome user" or login text.
-    2. Analyze their content (Podcasts, Posts) to find their TRUE driver.
-    3. If unsure, default to 'The Guardian' (safest bet).
+    1. VERIFY FIRM MATCH: Ensure the intel relates to their CURRENT role at {firm}. Ignore past roles (e.g. previous companies) unless relevant to their current philosophy.
+    2. IGNORE "Welcome user" or login text.
+    3. Analyze their content (Podcasts, Posts) to find their TRUE driver.
+    4. If unsure, default to 'The Guardian' (safest bet).
     4. OUTPUT MUST BE VALID JSON. Do not use single quotes for keys. Escape any quotes inside strings.
     
     Return a JSON object with:
