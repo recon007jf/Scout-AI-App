@@ -52,7 +52,9 @@
 - [x] Implement Manual Email Override
     - [x] Add "Edit Email" input field to `app.py` lead details
     - [x] Implement update logic to save manual entry to Google Sheet
-- [x] Save to GitHub
+- [x] Implement Manual LinkedIn Override
+    - [x] Update `app.py` to include "Edit LinkedIn" field
+    - [x] Combine with Email Edit for a unified "Manual Updates" form
     - [x] Create .gitignore
     - [x] Initialize repo and commit
     - [x] Push to remote

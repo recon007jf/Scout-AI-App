@@ -41,4 +41,4 @@ We need more signal to find these deep drivers. We will add specific Serper sear
 - **Budget Safety Guard**: Implemented a hard limit (`SAFETY_LIMIT = 50`) on leads processed per run to prevent accidental overage.
 - **Bulk Actions UI**: Added a sidebar tool to automatically scan and regenerate all incomplete leads in one click.
 - **Email Guessing**: Implemented logic to guess missing emails using AI and provide a reason. Display is beautified with bold text for the email and italics for the explanation.
-- **Manual Email Override**: Added a UI input to allow users to manually correct or update email addresses directly in the dashboard.
+- **Manual Updates**: Added a unified "Manual Updates" form to allow users to edit both Email and LinkedIn URL directly in the dashboard.

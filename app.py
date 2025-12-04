@@ -390,11 +390,17 @@ def main():
 </div>"""
                         st.markdown(html, unsafe_allow_html=True)
                 
-                # Manual Email Override
+                # Manual Updates (Email + LinkedIn)
                 st.markdown("---")
-                with st.form(key=f"email_edit_{index}"):
-                    new_email = st.text_input("📝 Manually Update Email", value=row.get('Found Email', ''))
-                    save_btn = st.form_submit_button("Save Email")
+                st.markdown("### 📝 Manual Updates")
+                with st.form(key=f"edit_lead_{index}"):
+                    c_edit_1, c_edit_2 = st.columns(2)
+                    with c_edit_1:
+                        new_email = st.text_input("Email Address", value=row.get('Found Email', ''))
+                    with c_edit_2:
+                        new_linkedin = st.text_input("LinkedIn URL", value=row.get('LinkedIn URL', ''))
+                        
+                    save_btn = st.form_submit_button("Save Changes")
                     
                     if save_btn:
                         client = get_google_sheet_client()
@@ -402,14 +408,19 @@ def main():
                             sheet = client.open(GOOGLE_SHEET_NAME).worksheet(WORKSHEET_NAME)
                             headers = sheet.row_values(1)
                             try:
+                                # Update Email
                                 email_col = headers.index("Found Email") + 1
-                                # Row index is index + 2 (0-based df index -> 1-based sheet row + header)
                                 sheet.update_cell(index + 2, email_col, new_email)
-                                st.success("✅ Email Updated!")
+                                
+                                # Update LinkedIn
+                                linkedin_col = headers.index("LinkedIn URL") + 1
+                                sheet.update_cell(index + 2, linkedin_col, new_linkedin)
+                                
+                                st.success("✅ Lead Updated!")
                                 time.sleep(1)
                                 st.rerun()
-                            except ValueError:
-                                st.error("Could not find 'Found Email' column.")
+                            except ValueError as e:
+                                st.error(f"Column not found: {e}")
                 
                 if row.get('Draft Email'):
                     st.text_area("Draft Email", row.get('Draft Email'), height=150)
