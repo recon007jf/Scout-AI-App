@@ -16,11 +16,27 @@ GOOGLE_SHEET_NAME = 'Scout Leads'
 WORKSHEET_NAME = 'Sheet1'
 CREDS_FILE = 'credentials.json'
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+SAFETY_LIMIT = 50 # 🛑 Max leads to process per run to prevent accidental overage
 
 # Configure Gemini
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash')
+
+def generate_content_with_retry(prompt, retries=5, base_delay=10):
+    """Wraps model.generate_content with exponential backoff for 429 errors."""
+    for attempt in range(retries):
+        try:
+            return model.generate_content(prompt)
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                wait_time = base_delay * (2 ** attempt)  # Exponential backoff: 10, 20, 40, 80...
+                print(f"   ⚠️ Rate Limit Hit. Waiting {wait_time}s before retry {attempt+1}/{retries}...")
+                time.sleep(wait_time)
+            else:
+                raise e # Re-raise other errors
+    raise Exception("Max retries exceeded for Gemini API.")
 
 def get_google_sheet_client():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -140,9 +156,10 @@ def analyze_lead(raw_intel, name, firm):
     - 'Pain_Points': [List of 2 likely challenges based on their Archetype]
     - 'Podcast_Name': (Name of their podcast if they host one, else null)
     - 'Podcast_URL': (URL to the podcast if found, else null)
+    - 'Podcast_URL': (URL to the podcast if found, else null)
     """
     try:
-        response = model.generate_content(prompt)
+        response = generate_content_with_retry(prompt)
         text = response.text.strip()
         
         # Robust JSON extraction
@@ -176,7 +193,7 @@ def write_email(analysis, first_name):
     Constraint: Keep it under 100 words. No fluff.
     """
     try:
-        response = model.generate_content(prompt)
+        response = generate_content_with_retry(prompt)
         return response.text.strip()
     except Exception as e:
         print(f"❌ Error writing email: {e}")
@@ -298,6 +315,11 @@ def main():
         processed_count = 0
         
         for i, row in enumerate(data, start=2):
+            # Safety Check
+            if processed_count >= SAFETY_LIMIT:
+                print(f"\n🛑 SAFETY LIMIT REACHED: Stopped after {processed_count} leads to protect budget.")
+                break
+
             # Filter: LinkedIn URL NOT empty
             linkedin_url = row.get('LinkedIn URL', '')
             if not linkedin_url: continue

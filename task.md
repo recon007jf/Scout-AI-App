@@ -33,6 +33,15 @@
     - [x] Update `analyze_lead` to extract evidence/quotes
     - [x] Update `process_single_lead` to save evidence to dossier
     - [x] Regenerate all leads with new evidence
+- [x] Beautify Dossier Display
+    - [x] Parse dossier text into structured data
+    - [x] Render with custom HTML/CSS card design
+- [x] Implement Smart Retry Logic
+    - [x] Update `recon_agent.py` with exponential backoff for API calls
+    - [x] Handle 429 errors gracefully
+- [x] Implement Budget Safety Guard
+    - [x] Add `SAFETY_LIMIT` constant to `recon_agent.py`
+    - [x] Enforce max leads per run (default 50)
 - [x] Save to GitHub
     - [x] Create .gitignore
     - [x] Initialize repo and commit

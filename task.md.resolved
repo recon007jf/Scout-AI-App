@@ -17,22 +17,31 @@
     - [x] Verify mobile responsiveness (Streamlit default)
 - [x] Implement Bernays Protocol (Deep Intelligence)
     - [x] Expand [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py) gathering (Podcasts, News, Speaking)
-    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#115-160) with Archetype Prompt (Controller, Social Climber, Guardian, Analyst)
+    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#131-177) with Archetype Prompt (Controller, Social Climber, Guardian, Analyst)
     - [x] Update [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) to display Archetype Badges & Legend
     - [x] Verify on test lead
 - [x] Add Podcast Details
     - [x] Update [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py) to extract & save Podcast Name/URL
     - [x] Update [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) to display "🎙️ Podcast Host" section
 - [x] Personalize Email Salutations
-    - [x] Update [write_email](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#161-184) to accept `first_name`
+    - [x] Update [write_email](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#178-201) to accept `first_name`
     - [x] Update prompt to enforce "Hi {first_name}"
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#185-260) to pass name
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#202-277) to pass name
 - [x] Improve Login UX
     - [x] Wrap login inputs in `st.form` to enable "Enter" key submission
 - [x] Add Archetype Evidence
-    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#115-160) to extract evidence/quotes
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#185-260) to save evidence to dossier
+    - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#131-177) to extract evidence/quotes
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#202-277) to save evidence to dossier
     - [x] Regenerate all leads with new evidence
+- [x] Beautify Dossier Display
+    - [x] Parse dossier text into structured data
+    - [x] Render with custom HTML/CSS card design
+- [x] Implement Smart Retry Logic
+    - [x] Update [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py) with exponential backoff for API calls
+    - [x] Handle 429 errors gracefully
+- [x] Implement Budget Safety Guard
+    - [x] Add `SAFETY_LIMIT` constant to [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py)
+    - [x] Enforce max leads per run (default 50)
 - [x] Save to GitHub
     - [x] Create .gitignore
     - [x] Initialize repo and commit

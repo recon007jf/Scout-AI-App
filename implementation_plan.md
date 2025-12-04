@@ -36,3 +36,6 @@ We need more signal to find these deep drivers. We will add specific Serper sear
 - Added **Archetype Legend** to the sidebar.
 - Added **Podcast Host** section to lead details.
 - Improved Login UX (Enter key submission).
+- **Beautified Dossier Display**: Implemented a custom HTML/CSS card design for the dossier summary.
+- **Smart Retry Logic**: Added exponential backoff to handle API rate limits (429 errors) automatically.
+- **Budget Safety Guard**: Implemented a hard limit (`SAFETY_LIMIT = 50`) on leads processed per run to prevent accidental overage.

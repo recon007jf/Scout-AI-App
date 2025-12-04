@@ -83,11 +83,42 @@ def extract_archetype(dossier_text):
     match = re.search(r'Archetype:\s*(.+)', dossier_text, re.IGNORECASE)
     if match:
         return match.group(1).strip()
-    # Fallback for old DISC format
     match_disc = re.search(r'DISC:\s*([DISC])', dossier_text, re.IGNORECASE)
     if match_disc:
         return f"DISC: {match_disc.group(1).upper()}"
     return "Unknown"
+
+def parse_dossier(dossier_text):
+    """Parses the dossier text into a dictionary."""
+    if not isinstance(dossier_text, str): return {}
+    
+    data = {}
+    # Extract fields using regex
+    patterns = {
+        'Archetype': r'Archetype:\s*(.+)',
+        'Driver': r'Driver:\s*(.+)',
+        'Evidence': r'Evidence:\s*(.+)',
+        'Hook': r'Hook:\s*(.+)',
+    }
+    
+    for key, pattern in patterns.items():
+        match = re.search(pattern, dossier_text, re.IGNORECASE)
+        if match:
+            data[key] = match.group(1).strip()
+            
+    # Extract Pain Points (multi-line)
+    pain_points = []
+    if "Pain Points:" in dossier_text:
+        parts = dossier_text.split("Pain Points:")
+        if len(parts) > 1:
+            lines = parts[1].strip().split('\n')
+            for line in lines:
+                cleaned = line.strip().lstrip('-').strip()
+                if cleaned and not cleaned.startswith("ERROR:"):
+                    pain_points.append(cleaned)
+    data['Pain_Points'] = pain_points
+    
+    return data
 
 # --- Main App ---
 def main():
@@ -266,12 +297,36 @@ def main():
                         st.markdown(f"[Listen Here]({pod_url})")
                 
                 if dossier:
-                    st.markdown(f"""
-                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; font-size: 0.9rem; line-height: 1.5; border: 1px solid #e0e0e0; margin-top: 10px;">
-                        <strong style="color: #424242;">🕵️ Dossier Summary</strong><br>
-                        <div style="white-space: pre-wrap; font-family: monospace; color: #616161;">{dossier}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    data = parse_dossier(dossier)
+                    
+                    # Fallback if parsing fails (e.g. old format or error)
+                    if not data:
+                        st.info(dossier)
+                    else:
+                        # Beautiful HTML Card
+                        html = f"""<div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-top: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-family: 'Helvetica Neue', sans-serif;">
+<div style="margin-bottom: 12px;">
+<span style="font-weight: 700; color: #424242; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Psychological Driver</span><br>
+<span style="font-size: 1.1rem; color: #1a1a1a; font-style: italic; font-weight: 500;">"{data.get('Driver', 'Unknown')}"</span>
+</div>
+<div style="margin-bottom: 12px;">
+<span style="font-weight: 700; color: #424242; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Evidence</span><br>
+<span style="font-size: 0.95rem; color: #616161; border-left: 3px solid #eeeeee; padding-left: 10px; display: block; margin-top: 4px;">
+{data.get('Evidence', 'N/A')}
+</span>
+</div>
+<div style="margin-bottom: 12px;">
+<span style="font-weight: 700; color: #424242; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Strategic Hook</span><br>
+<span style="font-size: 0.95rem; color: #2e7d32;">{data.get('Hook', 'N/A')}</span>
+</div>
+<div>
+<span style="font-weight: 700; color: #424242; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Pain Points</span>
+<ul style="margin-top: 5px; margin-bottom: 0; padding-left: 20px; color: #d32f2f; font-size: 0.9rem;">
+{''.join([f'<li>{p}</li>' for p in data.get('Pain_Points', [])])}
+</ul>
+</div>
+</div>"""
+                        st.markdown(html, unsafe_allow_html=True)
                 
                 if row.get('Draft Email'):
                     st.text_area("Draft Email", row.get('Draft Email'), height=150)
