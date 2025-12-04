@@ -341,11 +341,10 @@ def main():
                         st.markdown(f"[Listen Here]({pod_url})")
                 
                 if dossier:
-                    data = parse_dossier(dossier)
-                    
-                    # Fallback if parsing fails (e.g. old format or error)
-                    if not data:
-                        st.info(dossier)
+                    st.markdown("### 🧠 Dossier")
+                    # Check if it's JSON (old format) or Text (new format)
+                    if "{" in dossier and "}" in dossier:
+                        st.json(dossier)
                     else:
                         # Beautiful HTML Card
                         html = f"""<div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-top: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-family: 'Helvetica Neue', sans-serif;">
@@ -371,6 +370,27 @@ def main():
 </div>
 </div>"""
                         st.markdown(html, unsafe_allow_html=True)
+                
+                # Manual Email Override
+                st.markdown("---")
+                with st.form(key=f"email_edit_{index}"):
+                    new_email = st.text_input("📝 Manually Update Email", value=row.get('Found Email', ''))
+                    save_btn = st.form_submit_button("Save Email")
+                    
+                    if save_btn:
+                        client = get_google_sheet_client()
+                        if client:
+                            sheet = client.open(GOOGLE_SHEET_NAME).worksheet(WORKSHEET_NAME)
+                            headers = sheet.row_values(1)
+                            try:
+                                email_col = headers.index("Found Email") + 1
+                                # Row index is index + 2 (0-based df index -> 1-based sheet row + header)
+                                sheet.update_cell(index + 2, email_col, new_email)
+                                st.success("✅ Email Updated!")
+                                time.sleep(1)
+                                st.rerun()
+                            except ValueError:
+                                st.error("Could not find 'Found Email' column.")
                 
                 if row.get('Draft Email'):
                     st.text_area("Draft Email", row.get('Draft Email'), height=150)

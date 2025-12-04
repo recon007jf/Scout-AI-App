@@ -199,6 +199,39 @@ def write_email(analysis, first_name):
         print(f"❌ Error writing email: {e}")
         return ""
 
+def guess_email_logic(name, firm, intel):
+    """
+    If email is missing, ask Gemini to guess it and explain why.
+    """
+    print(f"   🤔 Guessing Email for {name}...")
+    prompt = f"""
+    The email address for {name} at {firm} was NOT found in public searches.
+    
+    Based on the firm's likely domain and standard corporate patterns, provide:
+    1. A Best Guess Email (e.g. first.last@company.com)
+    2. A Reasonable Explanation for why it wasn't found (e.g. "Strict spam filters", "New role", "Small digital footprint", "Uses parent company domain").
+    
+    INTEL CONTEXT:
+    {intel[:500]}...
+    
+    OUTPUT FORMAT:
+    Return ONLY a JSON object:
+    {{
+        "guess": "name@company.com",
+        "reason": "Explanation here..."
+    }}
+    """
+    try:
+        response = generate_content_with_retry(prompt)
+        text = response.text.strip()
+        match = re.search(r'\{.*\}', text, re.DOTALL)
+        if match:
+            return json.loads(match.group(0))
+    except Exception as e:
+        print(f"❌ Error guessing email: {e}")
+    
+    return {"guess": "Unknown", "reason": "Could not generate guess."}
+
 def process_single_lead(i, row, headers, sheet):
     """
     Processes a single lead row.
@@ -219,6 +252,24 @@ def process_single_lead(i, row, headers, sheet):
         
         # Step A: Intel
         raw_intel, image_url = gather_intel(full_name, firm, linkedin_url)
+        
+        # Step A.5: Email Guessing (If missing)
+        found_email = row.get('Found Email', '')
+        if not found_email or "GUESS" in found_email: # Re-guess if it was a previous guess
+            guess_data = guess_email_logic(full_name, firm, raw_intel)
+            guess = guess_data.get('guess', 'N/A')
+            reason = guess_data.get('reason', 'N/A')
+            
+            # Format: [GUESS] email (Reason: ...)
+            new_email_val = f"[GUESS] {guess}\n(Reason: {reason})"
+            
+            # Update Sheet immediately
+            try:
+                email_col_idx = headers.index("Found Email") + 1
+                sheet.update_cell(i, email_col_idx, new_email_val)
+                print(f"   💡 Updated Email with Guess: {guess}")
+            except ValueError:
+                print("   ⚠️ 'Found Email' column not found.")
         
         # Step B: Analysis
         analysis = analyze_lead(raw_intel, full_name, firm)

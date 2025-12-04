@@ -40,3 +40,5 @@ We need more signal to find these deep drivers. We will add specific Serper sear
 - **Smart Retry Logic**: Added exponential backoff to handle API rate limits (429 errors) automatically.
 - **Budget Safety Guard**: Implemented a hard limit (`SAFETY_LIMIT = 50`) on leads processed per run to prevent accidental overage.
 - **Bulk Actions UI**: Added a sidebar tool to automatically scan and regenerate all incomplete leads in one click.
+- **Email Guessing**: Implemented logic to guess missing emails using AI and provide a reason (e.g., "Strict spam filters").
+- **Manual Email Override**: Added a UI input to allow users to manually correct or update email addresses directly in the dashboard.
