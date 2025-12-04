@@ -12,3 +12,20 @@
     - [x] Create .gitignore
     - [x] Initialize repo and commit
     - [x] Push to remote
+- [ ] Integrate Serper API
+    - [x] Install python-dotenv
+    - [x] Create .env for API key
+    - [x] Install python-dotenv
+    - [x] Create .env for API key
+    - [x] Update agent.py with search logic (Query, Extraction, Fallback)
+    - [x] Run script (Limit 5 leads)
+- [x] Process all leads
+    - [x] Remove limit in agent.py
+    - [x] Run script for full list
+- [ ] Add LinkedIn Search
+    - [x] Update process_lead with LinkedIn query
+    - [x] Update write_to_google_sheet with new column
+    - [x] Run script to overwrite data
+- [ ] Refine LinkedIn Search
+    - [x] Update query to be broader (remove strict quotes)
+    - [x] Re-run script (Success: Improved results)
