@@ -45,9 +45,10 @@
 - [x] Add Bulk Regeneration UI
     - [x] Add "Bulk Actions" section to Sidebar
     - [x] Implement "Regenerate Incomplete Leads" button (Batch process)
-- [ ] Implement Email Guessing & Explanation
+- [x] Implement Email Guessing & Explanation
     - [x] Add `guess_email_logic` to `recon_agent.py`
     - [x] Update `process_single_lead` to populate missing emails with Guess + Reason
+    - [x] Beautify display in `app.py` (Bold Email, Italic Reason)
 - [x] Implement Manual Email Override
     - [x] Add "Edit Email" input field to `app.py` lead details
     - [x] Implement update logic to save manual entry to Google Sheet

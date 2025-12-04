@@ -26,12 +26,12 @@
 - [x] Personalize Email Salutations
     - [x] Update [write_email](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#178-201) to accept `first_name`
     - [x] Update prompt to enforce "Hi {first_name}"
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-328) to pass name
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to pass name
 - [x] Improve Login UX
     - [x] Wrap login inputs in `st.form` to enable "Enter" key submission
 - [x] Add Archetype Evidence
     - [x] Update [analyze_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#131-177) to extract evidence/quotes
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-328) to save evidence to dossier
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to save evidence to dossier
     - [x] Regenerate all leads with new evidence
 - [x] Beautify Dossier Display
     - [x] Parse dossier text into structured data
@@ -45,9 +45,10 @@
 - [x] Add Bulk Regeneration UI
     - [x] Add "Bulk Actions" section to Sidebar
     - [x] Implement "Regenerate Incomplete Leads" button (Batch process)
-- [ ] Implement Email Guessing & Explanation
+- [x] Implement Email Guessing & Explanation
     - [x] Add [guess_email_logic](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#202-234) to [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py)
-    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-328) to populate missing emails with Guess + Reason
+    - [x] Update [process_single_lead](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py#235-329) to populate missing emails with Guess + Reason
+    - [x] Beautify display in [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) (Bold Email, Italic Reason)
 - [x] Implement Manual Email Override
     - [x] Add "Edit Email" input field to [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py) lead details
     - [x] Implement update logic to save manual entry to Google Sheet

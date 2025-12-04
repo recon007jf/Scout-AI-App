@@ -175,8 +175,11 @@ def main():
                     incomplete_indices = []
                     for idx, row in enumerate(data):
                         dossier = row.get('Dossier Summary', '')
-                        email = row.get('Draft Email', '')
-                        if "Archetype: Unknown" in dossier or not dossier or not email:
+                        email_draft = row.get('Draft Email', '')
+                        found_email = row.get('Found Email', '')
+                        
+                        # Fix if: Archetype Unknown, Missing Dossier, Missing Draft, OR Email is "Not Found"/Empty
+                        if "Archetype: Unknown" in dossier or not dossier or not email_draft or not found_email or "Not Found" in found_email:
                             incomplete_indices.append(idx)
                     
                     total_incomplete = len(incomplete_indices)
@@ -328,7 +331,22 @@ def main():
         with st.expander("Show Details"):
             c1, c2 = st.columns([2, 1])
             with c1:
-                st.markdown(f"**Email:** `{row.get('Found Email', 'N/A')}`")
+                email_val = row.get('Found Email', 'N/A')
+                if "[GUESS]" in email_val:
+                    # Parse Guess
+                    try:
+                        # Expected format: [GUESS] email\n(Reason: reason)
+                        parts = email_val.replace("[GUESS]", "").strip().split("\n")
+                        guess_email = parts[0].strip()
+                        reason = parts[1].replace("(Reason:", "").replace(")", "").strip() if len(parts) > 1 else "Reason unknown"
+                        
+                        st.markdown(f"**Email:** <span style='font-weight: bold; color: #d32f2f;'>{guess_email}</span>", unsafe_allow_html=True)
+                        st.markdown(f"<div style='font-size: 0.9rem; color: #666; font-style: italic; margin-top: -10px; margin-bottom: 10px;'>{reason}</div>", unsafe_allow_html=True)
+                    except:
+                        st.markdown(f"**Email:** `{email_val}`")
+                else:
+                    st.markdown(f"**Email:** `{email_val}`")
+                
                 st.markdown(f"**LinkedIn:** {row.get('LinkedIn URL', 'N/A')}")
                 
                 # Podcast Display
@@ -346,6 +364,7 @@ def main():
                     if "{" in dossier and "}" in dossier:
                         st.json(dossier)
                     else:
+                        data = parse_dossier(dossier)
                         # Beautiful HTML Card
                         html = f"""<div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 20px; margin-top: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); font-family: 'Helvetica Neue', sans-serif;">
 <div style="margin-bottom: 12px;">

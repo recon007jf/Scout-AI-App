@@ -255,7 +255,8 @@ def process_single_lead(i, row, headers, sheet):
         
         # Step A.5: Email Guessing (If missing)
         found_email = row.get('Found Email', '')
-        if not found_email or "GUESS" in found_email: # Re-guess if it was a previous guess
+        # Trigger if empty, "Not Found", or already a "GUESS"
+        if not found_email or "Not Found" in found_email or "GUESS" in found_email:
             guess_data = guess_email_logic(full_name, firm, raw_intel)
             guess = guess_data.get('guess', 'N/A')
             reason = guess_data.get('reason', 'N/A')
