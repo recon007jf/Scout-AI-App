@@ -1,149 +1,221 @@
-/* Global Font */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+/* Global Styles - Sisyphus Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
-html,
-body,
-[class*="css"] {
+body {
     font-family: 'Inter', sans-serif;
+    background-color: #0d1117;
+    /* Deepest Navy/Black */
+    color: #c9d1d9;
 }
 
-/* 1. GLOBAL STYLING */
-/* Background */
-[data-testid="stAppViewContainer"] {
-    background-color: #0E1117;
-}
-
-/* Hide Streamlit Defaults */
-#MainMenu {
-    visibility: hidden;
-}
-
-footer {
-    visibility: hidden;
-}
-
-header {
-    visibility: hidden;
-}
-
-/* Reduce Padding */
+/* Streamlit Container */
 .block-container {
-    padding-top: 2rem !important;
-    padding-bottom: 1rem !important;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    max-width: 1200px;
 }
 
-/* 2. CUSTOM LEAD CARD */
-.lead-card {
-    background-color: #262730;
-    border: 1px solid #41444C;
-    border-radius: 15px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+/* Headings */
+h1,
+h2,
+h3 {
+    font-weight: 600;
+    color: #ffffff;
+    letter-spacing: -0.5px;
 }
 
-.card-header {
+/* --- Table / List Styling --- */
+
+/* The Row Container - Top Half of the "Card" */
+.lead-row {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-bottom: none;
+    /* Remove bottom border to merge with expander */
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    padding: 12px 20px;
+    margin-bottom: 0;
+    /* No gap between row and expander */
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
+    transition: background 0.2s ease;
 }
 
-.avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background-color: #4B5563;
+.lead-row:hover {
+    background-color: #1c2128;
+}
+
+/* Columns */
+.col-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background-color: #21262d;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    margin-right: 15px;
-    color: white;
-}
-
-.name-block h3 {
-    margin: 0;
-    color: #FFFFFF;
-    font-size: 1.2rem;
+    margin-right: 16px;
     font-weight: 600;
+    color: #ffffff;
+    font-size: 1rem;
+    flex-shrink: 0;
 }
 
-.name-block p {
-    margin: 0;
-    color: #9CA3AF;
-    /* Small Grey */
+.col-icon-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    margin-right: 16px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.col-name {
+    flex: 2;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.name-text {
+    font-weight: 600;
+    color: #ffffff;
+    font-size: 0.95rem;
+}
+
+.firm-text {
+    font-size: 0.85rem;
+    color: #8b949e;
+    margin-top: 2px;
+}
+
+.col-rating {
+    width: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rating-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #fff;
+    margin-right: 8px;
+}
+
+.rating-score {
     font-size: 0.9rem;
+    font-weight: 600;
+    color: #c9d1d9;
 }
 
-.badges {
-    margin-top: 8px;
+/* DISC Colors */
+.disc-d {
+    background-color: #f85149;
 }
 
-.badge {
-    padding: 4px 8px;
+.disc-i {
+    background-color: #e3b341;
+    color: #000;
+}
+
+.disc-s {
+    background-color: #2ea043;
+}
+
+.disc-c {
+    background-color: #1f6feb;
+}
+
+.disc-u {
+    background-color: #30363d;
+    color: #8b949e;
+}
+
+.col-labels {
+    flex: 2;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.label-pill {
+    background-color: #21262d;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    padding: 2px 10px;
     border-radius: 12px;
     font-size: 0.75rem;
-    font-weight: 600;
-    margin-right: 5px;
-}
-
-.badge-green {
-    background-color: #065F46;
-    color: #D1FAE5;
-}
-
-.badge-purple {
-    background-color: #5B21B6;
-    color: #EDE9FE;
-}
-
-.badge-blue {
-    background-color: #1E40AF;
-    color: #DBEAFE;
-}
-
-.intel-box {
-    background-color: #1C2633;
-    border-radius: 8px;
-    padding: 15px;
-    margin-top: 15px;
-    border-left: 4px solid #3B82F6;
-}
-
-.intel-key {
-    color: #9CA3AF;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-
-.intel-value {
-    color: #E5E7EB;
-    font-size: 0.95rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
-/* 3. SIDEBAR */
-[data-testid="stSidebar"] {
-    background-color: #111827;
-    border-right: 1px solid #374151;
+.label-pill.active {
+    background-color: rgba(56, 139, 253, 0.15);
+    color: #58a6ff;
+    border-color: rgba(56, 139, 253, 0.4);
 }
 
-/* 4. ACTION BUTTONS */
-/* Primary (Approve) - Gradient */
-div.stButton>button[kind="primary"] {
-    background: linear-gradient(90deg, #10B981 0%, #059669 100%);
+/* --- Expander Styling (The "Details" Section) --- */
+
+/* Target the Streamlit expander container */
+div[data-testid="stExpander"] {
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    border-top: none;
+    /* Merge with top row */
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-bottom: 8px;
+    /* Gap between cards */
+}
+
+/* The clickable summary (header) of the expander */
+div[data-testid="stExpander"] summary {
+    color: #8b949e;
+    font-size: 0.8rem;
+    padding-left: 20px;
+    /* Align with content */
+}
+
+div[data-testid="stExpander"] summary:hover {
+    color: #58a6ff;
+}
+
+/* The content inside the expander */
+div[data-testid="stExpander"] div[data-testid="stVerticalBlock"] {
+    padding: 0 20px 20px 20px;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #0d1117;
+    border-right: 1px solid #30363d;
+}
+
+/* Inputs */
+.stTextInput>div>div>input {
+    background-color: #0d1117;
     color: white;
-    border: none;
-    width: 100%;
-    padding: 0.5rem 1rem;
-    font-weight: 600;
+    border: 1px solid #30363d;
+    border-radius: 6px;
 }
 
-/* Secondary (Reject) - Ghost */
-div.stButton>button[kind="secondary"] {
-    background-color: transparent;
-    color: #EF4444;
-    border: 1px solid #EF4444;
-    width: 100%;
+/* Buttons */
+.stButton>button {
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
 }

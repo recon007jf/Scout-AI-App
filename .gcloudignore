@@ -1,0 +1,10 @@
+.git
+.gitignore
+__pycache__
+venv/
+.env
+README.md
+task.md
+implementation_plan.md
+test_lead.csv
+fix_dossier_format.py

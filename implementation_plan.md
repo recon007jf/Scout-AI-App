@@ -1,52 +1,36 @@
-# Point C Scout - Implementation Plan
+# Implementation Plan - The Bernays Protocol
 
-## Goal Description
-Build "Point C Scout," a B2B Sales Intelligence Tool designed for simplicity and financial safety. The tool automates lead discovery, profiling, and drafting using a single-tenant architecture hosted on Cloud Run with Google Sheets as the database.
+## Goal
+Upgrade the "Deep Recon" module to move beyond basic personality matching (DISC) and identify the **unconscious psychological driver** of each prospect. This is the "Bernays Protocol".
 
-## Architecture & Safety
-- **Database:** Google Sheets (Master Sheet: Leads, Logs, DNC_List) via `st.connection`.
-- **Financial Safety (Circuit Breakers):**
-    - `max_retries=3` on API calls.
-    - Daily Soft Cap: $15 (Alert).
-    - Monthly Hard Cap: $200 (Stop Processing).
-- **Security:** Single-Tenant, No PHI allowed.
+## Core Concept: The 4 Hidden Drivers
+We will analyze every piece of intel to classify the broker into one of four archetypes:
+1.  **The King (Control):** Wants to build their own empire. Hates being dependent on big carriers (BUCA).
+    *   *Keywords:* "Custom", "Independent", "Self-funded", "Architecture".
+2.  **The Shepherd (Safety):** Wants to protect their clients from risk. Fears change/disruption.
+    *   *Keywords:* "Stewardship", "Protection", "Compliance", "Trusted Advisor".
+3.  **The Star (Status):** Wants to be seen as a thought leader/innovator.
+    *   *Keywords:* "Award winner", "Speaker", "Innovation", "Disruptor".
+4.  **The Merchant (Profit):** Purely transactional. Wants the best margin/lowest cost.
+    *   *Keywords:* "ROI", "Bottom line", "Cost containment", "Savings".
 
 ## Proposed Changes
 
-### Project Structure
-- `app.py`: Main Streamlit application entry point.
-- `requirements.txt`: Python dependencies.
-- `modules/`: Contains the 5 core logic modules.
-    - `hunter.py`: Discovery logic (Serper, News).
-    - `profiler.py`: Analysis logic (Gemini, Regulatory Focus Theory).
-    - `ghostwriter.py`: Drafting logic (Gemini, RAG).
-    - `command_center.py`: UI components (Card View vs. Table View).
-    - `circuit_breaker.py`: Safety and cost management.
-- `utils/`: Helper functions.
-    - `gsheets.py`: Database interactions.
-    - `msgraph.py`: Outlook integration.
-    - `serper.py`: Search API wrapper.
-    - `email_templates.py`: HTML generators for Smart Briefing.
-- `config/`: Configuration and settings.
+### 1. Expand Intel Gathering (`recon_agent.py`)
+We need more signal to find these deep drivers. We will add specific Serper searches:
+- **Podcasts/Interviews:** `site:youtube.com OR site:spotify.com "Name" "Firm" interview`
+## Recent Changes
 
-## UI/UX Specifications
-### Command Center
-- **Closer View (The Executive Suite):** Card-based interface for Andrew.
-    - Sidebar: Scout Co-Pilot Chat.
-    - Main: "Daily Stack" of Lead Cards (Name, Title, Badges, Editable Draft, Approve/Reject buttons).
-- **Scout View (Team Interface):** Data table for bulk management.
-    - `st.dataframe` with filtering and editing.
-    - Bulk Export to CSV.
+#### [MODIFY] [recon_agent.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/recon_agent.py)
+- Implemented **Bernays Protocol**:
+    - Expanded `gather_intel` to search for Podcasts, Interviews, and News.
+    - Updated `analyze_lead` to identify 4 Archetypes: Controller, Social Climber, Guardian, Analyst.
+    - Updated `write_email` to use Archetype-specific strategies and hooks.
+    - Added extraction of **Podcast Name** and **URL**.
+    - Enforced personalized salutations ("Hi {First Name}").
+    - Hardened JSON parsing logic.
 
-### Smart Briefing Email
-- **Design:** "Synthetic LinkedIn Post".
-- **Structure:** Header img, LinkedIn-style post box (Lead snippet), Strategy box (Blue), Footer img.
-
-## Verification Plan
-### Automated Tests
-- Unit tests for Circuit Breaker logic (mocking API calls to verify caps).
-- Integration tests for Google Sheets connection (verify read/write).
-
-### Manual Verification
-- **Circuit Breaker Test:** Manually trigger the daily cap limit to verify alert generation.
-- **End-to-End Flow:** Run a "Sniper Mode" search -> Profile -> Draft -> Approve (Mock push).
+#### [MODIFY] [app.py](file:///Users/josephlf/.gemini/antigravity/brain/02e59244-ce52-4904-b156-ca810a595f5c/app.py)
+- Replaced DISC badge with **Archetype Badge** (Color-coded).
+- Added **Archetype Legend** to the sidebar.
+- Added **Podcast Host** section to lead details.

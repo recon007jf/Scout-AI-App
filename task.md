@@ -7,7 +7,26 @@
 - [x] Install dependencies
 - [x] Verify credentials and run script
     - [x] Credentials format check passed
-    - [x] Run script (Success: Uploaded to 'Scout Leads')
+    - [x] Deploy application (Success: https://scout-dashboard-283427197752.us-central1.run.app)
+    - [x] Fix Access Issues (Made Public + Password Protected)
+    - [x] Deploy application (Success: https://scout-dashboard-283427197752.us-central1.run.app)
+    - [x] Fix Access Issues (Made Public + Password Protected)
+    - [x] Verify Password Protection on Cloud Run (Confirmed Live)
+- [x] Final Polish of UI
+    - [x] Implement "Retry" button for failed leads
+    - [x] Verify mobile responsiveness (Streamlit default)
+- [x] Implement Bernays Protocol (Deep Intelligence)
+    - [x] Expand `recon_agent.py` gathering (Podcasts, News, Speaking)
+    - [x] Update `analyze_lead` with Archetype Prompt (Controller, Social Climber, Guardian, Analyst)
+    - [x] Update `app.py` to display Archetype Badges & Legend
+    - [x] Verify on test lead
+- [x] Add Podcast Details
+    - [x] Update `recon_agent.py` to extract & save Podcast Name/URL
+    - [x] Update `app.py` to display "🎙️ Podcast Host" section
+- [x] Personalize Email Salutations
+    - [x] Update `write_email` to accept `first_name`
+    - [x] Update prompt to enforce "Hi {first_name}"
+    - [x] Update `process_single_lead` to pass name
 - [x] Save to GitHub
     - [x] Create .gitignore
     - [x] Initialize repo and commit
@@ -29,3 +48,60 @@
 - [ ] Refine LinkedIn Search
     - [x] Update query to be broader (remove strict quotes)
     - [x] Re-run script (Success: Improved results)
+- [x] Save progress to GitHub
+    - [x] Commit and push new features
+- [ ] Implement Email Validation
+    - [x] Add validation logic (length check, name matching)
+    - [x] Filter generic/junk emails
+    - [x] Re-run script to clean up data
+- [ ] Refine Email Search
+    - [x] Remove "Guessing" logic (Strict "Not Found")
+    - [x] Add LinkedIn X-Ray search (site:linkedin.com/in/... "@")
+    - [x] Re-run script (Success: X-Ray active)
+- [ ] Build Deep Recon Module
+    - [x] Update requirements (google-generativeai)
+    - [x] Update .env with Gemini Key
+    - [x] Create recon_agent.py (Serper + Gemini Analyst + Gemini Copywriter)
+    - [x] Run on first 3 leads (Success: Dossiers & Drafts generated)
+- [ ] Refine Deep Recon Output
+    - [x] Format Dossier Summary as readable text (not JSON)
+    - [x] Run on next batch of leads (Success: Readable dossiers)
+- [ ] Build Scout Dashboard
+    - [x] Update requirements (streamlit)
+    - [x] Create app.py (Streamlit UI)
+    - [x] Implement Google Sheets connection
+    - [x] Add "Export to CSV" features
+    - [x] Style with custom CSS
+    - [x] Launch Dashboard (http://localhost:8502)
+- [ ] Redesign Scout Dashboard UI
+    - [x] Analyze example URLs (Crypto Table aesthetic)
+    - [x] Create "Sisyphus" CSS (Deep Navy, Rating Badges, Pill Labels)
+    - [x] Update app.py to use "Sisyphus" layout
+    - [x] Add "Quick Actions" (Export/View)
+- [ ] Add LinkedIn Profile Photos
+    - [x] Update recon_agent.py to search for profile images
+    - [x] Update Google Sheet with "Profile Image" column
+    - [x] Update app.py to display photos in the dashboard
+    - [x] Update CSS for image avatars
+- [ ] Refine Dashboard Layout
+    - [x] Merge "Row" and "Details" visually (remove gaps/borders)
+    - [x] Update CSS to create a unified "Card" look
+    - [x] Move actions inside the details area if needed
+- [ ] Clean Up Dossier Formatting
+    - [x] Create fix_dossier_format.py (JSON -> Text, Strip Markdown)
+    - [x] Run cleanup script on all rows
+    - [x] Update recon_agent.py to enforce plain text output
+- [ ] Debug & Fix Data Issues
+    - [x] Fix agent.py (saving Title instead of URL?)
+    - [x] Update recon_agent.py Prompt (Ignore "Welcome user" / login text)
+    - [x] Re-run Recon for Kevin Overbey (and full list) - DONE (Some 429 errors on emails)
+
+## Next Steps (Tomorrow)
+- [ ] Review final list for any missing emails (due to rate limits)
+- [ ] Implement "Retry" button in Dashboard for failed items
+- [ ] Final Polish of UI - DONE (Some 429 errors on emails)
+
+## Next Steps (Tomorrow)
+- [ ] Review final list for any missing emails (due to rate limits)
+- [ ] Implement "Retry" button in Dashboard for failed items
+- [ ] Final Polish of UI
