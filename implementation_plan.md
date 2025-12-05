@@ -43,3 +43,13 @@ We need more signal to find these deep drivers. We will add specific Serper sear
 - **Email Guessing**: Implemented logic to guess missing emails using AI and provide a reason. Display is beautified with bold text for the email and italics for the explanation.
 - **Manual Updates**: Added a unified "Manual Updates" form to allow users to edit both Email and LinkedIn URL directly in the dashboard.
 - **Data Integrity Audit**: Created an automated `integrity_check.py` script and dashboard button to verify that each lead's current role matches the target firm, flagging mismatches for review.
+- **CSV Import & Smart Enrichment**: 
+    - **Import**: Sidebar widget to upload new leads (even with just Name/Firm).
+    - **Auto-Discovery**: The "Fix Incomplete Leads" tool will be upgraded to automatically search for and find LinkedIn profiles if they are missing from the imported data, before proceeding with the full dossier and email generation.
+- **Research: Azure/Outlook Integration**:
+    - **Goal**: Send approved drafts directly to Outlook.
+    - **Action**: Detailed discussion of technical requirements, pitfalls (OAuth2, Permissions, Security), and feasibility. No code implementation scheduled.
+- **Domain Knowledge Injection**:
+    - **Carrier Rules**: Enforce state-specific pitching for Anthem (CA, CO, NY, etc.), Cigna flexibility, and Aetna constraints.
+    - **FairPoint Strategy**: Target 'Controller'/'Analyst' profiles with Reference-Based Pricing (RBP) value props, handling "front desk" objections.
+    - **Logic Mapping**: specific rules for PBM carve-outs and avoiding "cannibalization" (Anthem FI -> Anthem SF).

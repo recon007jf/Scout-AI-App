@@ -31,6 +31,14 @@ If a lead is missing a Draft Email (due to API rate limits):
 - **Export All:** Click the sidebar button to download the entire dataset as CSV.
 - **Export Single:** Click "⬇️ Download CSV" inside any card to get just that lead's data.
 
+### 5. Bulk Actions & Integrity
+- **Fix Incomplete Leads:** A sidebar button to auto-regenerate all leads missing data or emails.
+- **Integrity Check:** A sidebar button to audit the database, flagging leads where the current role on LinkedIn doesn't match the target firm.
+
+### 6. Manual Overrides
+- **Edit Data:** Expand any lead card and scroll to "Manual Updates" to fix Email Addresses or LinkedIn URLs directly.
+- **Email Guessing:** The system now auto-guesses missing emails (labeled with `[guess]`) and provides a reason.
+
 ## Deployment Details
 - **Platform:** Google Cloud Run (Serverless)
 - **Security:** Publicly accessible URL, protected by application-level password.

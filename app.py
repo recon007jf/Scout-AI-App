@@ -157,7 +157,47 @@ def main():
         if st.button("🔄 Refresh Data"):
             st.cache_data.clear()
             st.rerun()
-            
+    # Sidebar - Bulk Actions
+    st.sidebar.header("Bulk Actions")
+    
+    # CSV Import
+    uploaded_file = st.sidebar.file_uploader("📂 Import New Leads (CSV)", type=["csv"])
+    if uploaded_file is not None:
+        if st.sidebar.button("Import Data"):
+            try:
+                new_data = pd.read_csv(uploaded_file)
+                
+                # Basic Validation: Check for required columns
+                required_cols = ['First Name', 'Last Name', 'Firm', 'LinkedIn URL']
+                missing_cols = [col for col in required_cols if col not in new_data.columns]
+                
+                if missing_cols:
+                    st.sidebar.error(f"Missing columns: {', '.join(missing_cols)}")
+                else:
+                    client = get_google_sheet_client()
+                    if client:
+                        sheet = client.open(GOOGLE_SHEET_NAME).worksheet(WORKSHEET_NAME)
+                        # Append data
+                        # Convert NaN to empty string for Sheets
+                        new_data = new_data.fillna('')
+                        
+                        # Ensure all sheet headers exist in new_data (fill missing with empty)
+                        sheet_headers = sheet.row_values(1)
+                        for header in sheet_headers:
+                            if header not in new_data.columns:
+                                new_data[header] = ''
+                                
+                        # Reorder to match sheet
+                        new_data = new_data[sheet_headers]
+                        
+                        sheet.append_rows(new_data.values.tolist())
+                        st.sidebar.success(f"✅ Imported {len(new_data)} leads!")
+                        time.sleep(2)
+                        st.cache_data.clear()
+                        st.rerun()
+            except Exception as e:
+                st.sidebar.error(f"Error importing: {e}")
+
         if st.button("♻️ Fix Incomplete Leads"):
             with st.spinner("Scanning and repairing..."):
                 # Connect to sheet
