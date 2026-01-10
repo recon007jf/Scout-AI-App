@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { createClient } from "@supabase/supabase-js"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle2, XCircle } from "lucide-react"
@@ -17,12 +17,13 @@ function CallbackContent() {
     tokenPresent: false,
     typeParam: "",
     message: "Initializing...",
+    verifierFound: false,
   })
   const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     const handleCallback = async () => {
-      const supabase = createClient()
+      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
       // Parse URL parameters
       const code = searchParams.get("code")
@@ -30,16 +31,24 @@ function CallbackContent() {
       const type = searchParams.get("type")
       const next = searchParams.get("next") || "/"
 
+      const keys = Object.keys(localStorage)
+      const verifierKeys = keys.filter(
+        (k) => k.includes("code-verifier") || k.includes("pkce") || k.includes("supabase"),
+      )
+
       setDebugInfo({
         codePresent: !!code,
         tokenPresent: !!token,
         typeParam: type || "none",
         message: "Callback received",
+        verifierFound: verifierKeys.length > 0,
       })
 
       console.log("[v0 Callback] Code present:", !!code)
       console.log("[v0 Callback] Token present:", !!token)
       console.log("[v0 Callback] Type:", type)
+      console.log("[v0 Callback] PKCE Verifier found:", verifierKeys.length > 0)
+      console.log("[v0 Callback] Storage keys:", verifierKeys)
       console.log("[v0 Callback] Next destination:", next)
 
       if (code) {
@@ -72,8 +81,6 @@ function CallbackContent() {
         setDebugInfo((prev) => ({ ...prev, message: "Processing recovery token..." }))
         console.log("[v0 Callback] Recovery token detected, checking session...")
 
-        // For recovery flows, Supabase automatically establishes the session
-        // We just need to verify it exists
         const { data } = await supabase.auth.getSession()
 
         if (data.session) {
@@ -124,6 +131,12 @@ function CallbackContent() {
                 <span className="text-muted-foreground">Token present:</span>
                 <span className={debugInfo.tokenPresent ? "text-green-500" : "text-muted-foreground"}>
                   {debugInfo.tokenPresent ? "Yes" : "No"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">PKCE Verifier:</span>
+                <span className={debugInfo.verifierFound ? "text-green-500" : "text-yellow-500"}>
+                  {debugInfo.verifierFound ? "Found" : "Not found"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
