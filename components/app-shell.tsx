@@ -1,0 +1,336 @@
+"use client"
+
+import type React from "react"
+import { useState, useEffect, useCallback } from "react"
+import { Target } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { logout } from "@/lib/auth"
+import Image from "next/image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { createBrowserClient } from "@/lib/supabase/client"
+import { AIAgentPanel } from "@/components/ai-agent-panel"
+import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
+import { CalendarView } from "@/components/views/calendar-view"
+import { PerformanceView } from "@/components/views/performance-view"
+import { NotesView } from "@/components/views/notes-view"
+import { SignalsView } from "@/components/views/signals-view"
+import { NetworkView } from "@/components/views/network-view"
+import { TerritoryView } from "@/components/views/territory-view"
+import { SettingsView } from "@/components/views/settings-view"
+import { GlobalSearch } from "@/components/global-search"
+import { useRouter } from "next/navigation"
+
+interface AppShellProps {
+  children: React.ReactNode
+}
+
+export function AppShell({ children }: AppShellProps) {
+  const [activeView, setActiveView] = useState<string>("morning-briefing")
+  const [user, setUser] = useState<{ email: string; name: string; role?: string } | null>(null)
+  const [currentDay, setCurrentDay] = useState<number>(new Date().getDate())
+  const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const supabase = createBrowserClient()
+      const {
+        data: { user: authUser },
+        error,
+      } = await supabase.auth.getUser()
+
+      if (!authUser || error) {
+        router.push("/login?error=auth_required")
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("email, name, role")
+        .eq("id", authUser.id)
+        .single()
+
+      if (profile && !profileError) {
+        setUser({
+          email: profile.email || authUser.email || "",
+          name: profile.name || authUser.email?.split("@")[0] || "User",
+          role: profile.role,
+        })
+      } else {
+        const displayName =
+          authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "User"
+
+        setUser({
+          email: authUser.email || "",
+          name: displayName,
+        })
+      }
+
+      setIsCheckingAuth(false)
+    }
+
+    fetchUser()
+
+    const updateDay = () => setCurrentDay(new Date().getDate())
+    updateDay()
+
+    const now = new Date()
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
+    const msUntilMidnight = tomorrow.getTime() - now.getTime()
+
+    const midnightTimeout = setTimeout(() => {
+      updateDay()
+      const dailyInterval = setInterval(updateDay, 24 * 60 * 60 * 1000)
+      return () => clearInterval(dailyInterval)
+    }, msUntilMidnight)
+
+    return () => clearTimeout(midnightTimeout)
+  }, [router])
+
+  const navigationItems = [
+    { id: "morning-briefing", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
+    { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
+    { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
+    { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
+    { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose", showDate: true },
+    { id: "performance", label: "Performance", icon: "/icons/performance.png", color: "cyan" },
+    { id: "notes", label: "Notes", icon: "/icons/notes-icon.svg", color: "orange" },
+  ]
+
+  const getUserInitials = () => {
+    if (!user?.name) return "U"
+    return user.name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+  }
+
+  const getColorClasses = (color: string, isActive: boolean) => {
+    const colorMap = {
+      amber: {
+        text: "text-amber-400",
+        bg: "bg-amber-500/10",
+        bgHover: "hover:bg-amber-500/20",
+        bgActive: "bg-amber-500/20",
+        pageTint: "bg-amber-950/10",
+      },
+      green: {
+        text: "text-green-400",
+        bg: "bg-green-500/10",
+        bgHover: "hover:bg-green-500/20",
+        bgActive: "bg-green-500/20",
+        pageTint: "bg-green-950/10",
+      },
+      blue: {
+        text: "text-blue-400",
+        bg: "bg-blue-500/10",
+        bgHover: "hover:bg-blue-500/20",
+        bgActive: "bg-blue-500/20",
+        pageTint: "bg-blue-950/10",
+      },
+      purple: {
+        text: "text-purple-400",
+        bg: "bg-purple-500/10",
+        bgHover: "hover:bg-purple-500/20",
+        bgActive: "bg-purple-500/20",
+        pageTint: "bg-purple-950/10",
+      },
+      rose: {
+        text: "text-rose-400",
+        bg: "bg-rose-500/10",
+        bgHover: "hover:bg-rose-500/20",
+        bgActive: "bg-rose-500/20",
+        pageTint: "bg-rose-950/10",
+      },
+      cyan: {
+        text: "text-cyan-400",
+        bg: "bg-cyan-500/10",
+        bgHover: "hover:bg-cyan-500/20",
+        bgActive: "bg-cyan-500/20",
+        pageTint: "bg-cyan-950/10",
+      },
+      orange: {
+        text: "text-orange-400",
+        bg: "bg-orange-500/10",
+        bgHover: "hover:bg-orange-500/20",
+        bgActive: "bg-orange-500/20",
+        pageTint: "bg-orange-950/10",
+      },
+      gray: {
+        text: "text-gray-400",
+        bg: "bg-gray-500/10",
+        bgHover: "hover:bg-gray-500/20",
+        bgActive: "bg-gray-500/20",
+        pageTint: "bg-gray-950/10",
+      },
+    }
+
+    return colorMap[color as keyof typeof colorMap] || colorMap.amber
+  }
+
+  const getPageTint = () => {
+    const activeItem = navigationItems.find((item) => item.id === activeView)
+    if (!activeItem) return ""
+    const gradientMap = {
+      amber: "bg-gradient-to-br from-amber-950/15 via-amber-950/5 to-transparent",
+      green: "bg-gradient-to-br from-green-950/15 via-green-950/5 to-transparent",
+      blue: "bg-gradient-to-br from-blue-950/15 via-blue-950/5 to-transparent",
+      purple: "bg-gradient-to-br from-purple-950/15 via-purple-950/5 to-transparent",
+      rose: "bg-gradient-to-br from-rose-950/15 via-rose-950/5 to-transparent",
+      cyan: "bg-gradient-to-br from-cyan-950/15 via-cyan-950/5 to-transparent",
+      orange: "bg-gradient-to-br from-orange-950/15 via-orange-950/5 to-transparent",
+      gray: "bg-gradient-to-br from-gray-950/15 via-gray-950/5 to-transparent",
+    }
+    return gradientMap[activeItem.color as keyof typeof gradientMap] || ""
+  }
+
+  const handleSettingsMount = useCallback(() => {
+    setSettingsTab(undefined)
+  }, [])
+
+  const handleNavigateToSettings = useCallback((tab?: string) => {
+    setSettingsTab(tab)
+    setActiveView("settings")
+  }, [])
+
+  if (isCheckingAuth) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-black">
+      {/* Left Sidebar Navigation */}
+      <aside className="w-20 border-r border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
+        {/* Logo */}
+        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+          <Target className="w-8 h-8 text-primary" />
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="flex flex-col gap-5">
+          {navigationItems.map((item) => {
+            const isActive = activeView === item.id
+            const colors = getColorClasses(item.color, isActive)
+
+            return (
+              <button
+                key={item.id}
+                className={cn(
+                  "w-16 h-16 rounded-xl flex items-center justify-center transition-all relative",
+                  isActive ? colors.text : "text-muted-foreground",
+                  isActive ? colors.bgActive : colors.bgHover,
+                )}
+                onClick={() => setActiveView(item.id)}
+                title={item.label}
+              >
+                <Image
+                  src={item.icon || "/placeholder.svg"}
+                  alt={item.label}
+                  width={68}
+                  height={68}
+                  className={cn("transition-all", isActive ? "opacity-100" : "opacity-60")}
+                />
+                {item.showDate && (
+                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black pt-3">
+                    {currentDay}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </nav>
+
+        <button
+          className={cn(
+            "w-16 h-16 rounded-xl flex items-center justify-center transition-all mt-auto",
+            activeView === "settings" ? "text-gray-400 bg-gray-500/20" : "text-muted-foreground hover:bg-gray-500/20",
+          )}
+          onClick={() => setActiveView("settings")}
+          title="Settings"
+        >
+          <Image
+            src="/icons/settings.png"
+            alt="Settings"
+            width={68}
+            height={68}
+            className={cn("transition-all", activeView === "settings" ? "opacity-100" : "opacity-60")}
+          />
+        </button>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="border-b border-border bg-gradient-to-r from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 backdrop-blur-sm sticky top-0 z-20">
+          <div className="px-6 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="text-xl font-semibold text-foreground">Scout</h1>
+                <p className="text-xs text-muted-foreground">by Pacific AI Systems</p>
+              </div>
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center gap-3 hover:bg-card/50">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-foreground">{user?.name || "User"}</p>
+                    <p className="text-xs text-muted-foreground">{user?.email || ""}</p>
+                  </div>
+                  <Avatar className="w-10 h-10 border-2 border-border">
+                    <AvatarFallback>{getUserInitials()}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </header>
+
+        <div className="border-b border-border/50 bg-card/20 px-6 py-3 flex justify-center">
+          <div className="w-full max-w-3xl">
+            <GlobalSearch currentMode={activeView} />
+          </div>
+        </div>
+
+        {/* Content */}
+        <main className="relative flex-1 overflow-auto">
+          {activeView === "morning-briefing" && (
+            <MorningBriefingDashboard onNavigateToSettings={handleNavigateToSettings} />
+          )}
+          {activeView === "signals" && <SignalsView />}
+          {activeView === "network" && <NetworkView />}
+          {activeView === "territory" && <TerritoryView />}
+          {activeView === "calendar" && <CalendarView />}
+          {activeView === "performance" && <PerformanceView />}
+          {activeView === "notes" && <NotesView />}
+          {activeView === "settings" && <SettingsView initialTab={settingsTab} onMount={handleSettingsMount} />}
+        </main>
+      </div>
+
+      <AIAgentPanel />
+    </div>
+  )
+}
