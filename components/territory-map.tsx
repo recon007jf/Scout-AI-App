@@ -122,9 +122,12 @@ export default function TerritoryMap({ accounts, selectedAccount, onSelectAccoun
     if (typeof window !== "undefined" && !window.google) {
       const script = document.createElement("script")
       const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+
       if (!mapsKey) {
         console.error("[v0] NEXT_PUBLIC_GOOGLE_MAPS_KEY is not configured")
+        return
       }
+
       script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places`
       script.async = true
       script.defer = true

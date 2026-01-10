@@ -27,9 +27,9 @@ export default function ResetPasswordPage() {
     setSuccess(false)
 
     try {
-      // Supabase automatically establishes session on password recovery links
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://v0-scout-ui.vercel.app"
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: "https://v0-scout-ui.vercel.app/auth/update-password",
+        redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
       })
 
       if (error) {
