@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { createBrowserClient } from "@/lib/supabase/client"
+import { createClient } from "@supabase/supabase-js"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,14 +17,17 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<{ verifierFound: boolean; keys: string[] } | null>(null)
 
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createBrowserClient()
+
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
     setIsLoading(true)
     setError(null)
     setSuccess(false)
+    setDebugInfo(null)
 
     try {
       const redirectTo = `${window.location.origin}/auth/callback?next=/auth/update-password`
@@ -37,6 +40,21 @@ export default function ResetPasswordPage() {
       if (error) {
         throw new Error("Unable to send password reset email. Please try again.")
       }
+
+      const keys = Object.keys(localStorage)
+      const verifierKeys = keys.filter(
+        (k) => k.includes("code-verifier") || k.includes("pkce") || k.includes("supabase"),
+      )
+
+      setDebugInfo({
+        verifierFound: verifierKeys.length > 0,
+        keys: verifierKeys,
+      })
+
+      console.log("[v0] PKCE Verifier Storage Check:", {
+        verifierFound: verifierKeys.length > 0,
+        keys: verifierKeys,
+      })
 
       setSuccess(true)
     } catch (error: unknown) {
@@ -99,12 +117,29 @@ export default function ResetPasswordPage() {
               )}
 
               {success && (
-                <Alert className="bg-green-500/10 border-green-500/50">
-                  <Mail className="h-4 w-4 text-green-500" />
-                  <AlertDescription className="text-green-500">
-                    Password reset link sent! Check your email and click the link to set a new password.
-                  </AlertDescription>
-                </Alert>
+                <>
+                  <Alert className="bg-green-500/10 border-green-500/50">
+                    <Mail className="h-4 w-4 text-green-500" />
+                    <AlertDescription className="text-green-500">
+                      Password reset link sent! Check your email and click the link to set a new password.
+                    </AlertDescription>
+                  </Alert>
+
+                  {debugInfo && (
+                    <Alert className="bg-blue-500/10 border-blue-500/50">
+                      <AlertDescription className="text-blue-500 space-y-1">
+                        <div className="font-semibold">PKCE Verifier Storage Debug:</div>
+                        <div>Verifier Found: {debugInfo.verifierFound ? "✓ YES" : "✗ NO"}</div>
+                        {debugInfo.keys.length > 0 && (
+                          <div className="text-xs mt-2">
+                            <div>Storage Keys ({debugInfo.keys.length}):</div>
+                            <div className="font-mono">{debugInfo.keys.slice(0, 3).join(", ")}</div>
+                          </div>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading || success}>
