@@ -49,8 +49,14 @@ export function AppShell({ children }: AppShellProps) {
         error,
       } = await supabase.auth.getUser()
 
-      if (!authUser || error) {
-        router.push("/login?error=auth_required")
+      if (!authUser && !error) {
+        setIsCheckingAuth(false)
+        return // Don't redirect, just show no user state
+      }
+
+      if (error) {
+        console.error("[v0 AppShell] Auth check error:", error)
+        setIsCheckingAuth(false)
         return
       }
 
