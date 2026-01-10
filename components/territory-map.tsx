@@ -121,7 +121,11 @@ export default function TerritoryMap({ accounts, selectedAccount, onSelectAccoun
   useEffect(() => {
     if (typeof window !== "undefined" && !window.google) {
       const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCTSFTHEWottjXMo0SnSSfTIQM-ue5KQRE&libraries=places`
+      const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+      if (!mapsKey) {
+        console.error("[v0] NEXT_PUBLIC_GOOGLE_MAPS_KEY is not configured")
+      }
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places`
       script.async = true
       script.defer = true
       script.onload = () => setIsLoaded(true)
