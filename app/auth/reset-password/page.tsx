@@ -28,8 +28,11 @@ export default function ResetPasswordPage() {
 
     try {
       const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://v0-scout-ui.vercel.app"
+      const redirectTo = `${siteUrl}/auth/callback?next=/auth/update-password`
+      console.log("[v0] Reset Password RedirectTo:", redirectTo)
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${siteUrl}/auth/callback?next=/auth/update-password`,
+        redirectTo,
       })
 
       if (error) {
