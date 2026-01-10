@@ -21,15 +21,13 @@ export default function ResetPasswordPage() {
   const handleResetRequest = async (e: React.FormEvent) => {
     e.preventDefault()
     const supabase = createBrowserClient()
-    console.log("[v0] Supabase Client Storage: Cookies (@supabase/ssr)")
 
     setIsLoading(true)
     setError(null)
     setSuccess(false)
 
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://v0-scout-ui.vercel.app"
-      const redirectTo = `${siteUrl}/auth/callback?next=/auth/update-password`
+      const redirectTo = `${window.location.origin}/auth/callback?next=/auth/update-password`
       console.log("[v0] Reset Password RedirectTo:", redirectTo)
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
