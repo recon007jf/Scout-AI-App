@@ -67,30 +67,38 @@ export interface MorningQueueTarget {
 }
 
 export const normalizeTarget = (raw: any): MorningQueueTarget => {
+  // Adding console audit to inspect raw database response
+  console.log("AUDIT ROW:", raw)
+
   return {
     id: raw?.id || "",
 
-    // Contact info (from CSV)
-    name: raw?.["Contact Full Name"] || raw?.full_name || "Unknown Contact",
-    company: raw?.["Company Name"] || raw?.company || "Unknown Company",
-    title: raw?.["Contact Job Title"] || raw?.title || "Unknown Title",
-    email: raw?.["Contact Email"] || raw?.email || "",
-    phone: raw?.["Contact Mobile Phone 1"] ? String(raw["Contact Mobile Phone 1"]) : "",
-    linkedinUrl: raw?.["LinkedIn_URL"] || raw?.linkedin_url || "",
+    // Mapping from snake_case DB columns (Supabase auto-conversion) with CSV fallback
+    // Contact info - prioritize snake_case DB columns
+    name: raw?.contact_full_name || raw?.["Contact Full Name"] || "",
+    company: raw?.company_name || raw?.["Company Name"] || "",
+    title: raw?.contact_job_title || raw?.["Contact Job Title"] || "",
+    email: raw?.contact_email || raw?.["Contact Email"] || "",
+    phone: raw?.contact_mobile_phone_1
+      ? String(raw.contact_mobile_phone_1)
+      : raw?.["Contact Mobile Phone 1"]
+        ? String(raw["Contact Mobile Phone 1"])
+        : "",
+    linkedinUrl: raw?.linkedin_url || raw?.["LinkedIn_URL"] || "",
 
-    // Company data (from CSV)
-    sponsor: raw?.["SPONSOR_NAME"] || raw?.sponsor_name || "Unknown Sponsor",
-    lives: raw?.["LIVES"] || raw?.lives || 0,
-    providerName: raw?.["PROVIDER_NAME_NORM"] || raw?.provider_name_norm || "",
-    providerState: raw?.["PROVIDER_STATE"] || raw?.provider_state || "",
-    firmState: raw?.["firm_state"] || "",
-    firmStateClass: raw?.["firm_state_class"] || "",
+    // Company data - prioritize snake_case DB columns
+    sponsor: raw?.sponsor_name || raw?.["SPONSOR_NAME"] || "",
+    lives: raw?.lives || raw?.LIVES || 0,
+    providerName: raw?.provider_name_norm || raw?.["PROVIDER_NAME_NORM"] || "",
+    providerState: raw?.provider_state || raw?.["PROVIDER_STATE"] || "",
+    firmState: raw?.firm_state || "",
+    firmStateClass: raw?.firm_state_class || "",
 
-    // Funding data (from CSV)
-    fundingStatus: raw?.["Funding_Status_Est"] || raw?.funding_status_est || "Unknown",
-    fundingConfidence: raw?.["Funding_Confidence"] || raw?.funding_confidence || "Unknown",
-    fundingSource: raw?.["Funding_Source"] || raw?.funding_source || "",
-    stopLossVerified: raw?.["StopLoss_Verified"] || raw?.stoploss_verified || false,
+    // Funding data - prioritize snake_case DB columns
+    fundingStatus: raw?.funding_status_est || raw?.["Funding_Status_Est"] || "",
+    fundingConfidence: raw?.funding_confidence || raw?.["Funding_Confidence"] || "",
+    fundingSource: raw?.funding_source || raw?.["Funding_Source"] || "",
+    stopLossVerified: raw?.stoploss_verified ?? raw?.["StopLoss_Verified"] ?? false,
 
     // Workflow
     status: raw?.status || "PENDING",
