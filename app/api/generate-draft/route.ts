@@ -10,7 +10,7 @@ export async function POST(req: Request) {
   const backendUrl = getBackendUrl()
   const internalSecret = process.env.SCOUT_INTERNAL_SECRET
 
-  console.log("=== DRAFT GENERATION PROXY DEBUG ===")
+  console.log("=== DRAFT GENERATION PROXY DEBUG (v2026-01-11T11:10) ===")
   console.log("Environment:", process.env.VERCEL_ENV || "local")
   console.log("Resolved Backend URL:", backendUrl)
   console.log("Target Endpoint:", `${backendUrl}/api/scout/generate-draft`)
