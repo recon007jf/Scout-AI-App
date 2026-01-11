@@ -1,4 +1,4 @@
-cks oimport { createBrowserClient } from "@/lib/supabase/client"
+import { createBrowserClient } from "@/lib/supabase/client"
 
 export interface MorningQueueTarget {
   id: string
