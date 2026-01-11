@@ -43,25 +43,8 @@ export interface MorningQueueTarget {
   name: string // from "Contact Full Name"
   company: string // from "Company Name"
   title: string // from "Contact Job Title"
-  email: string // from "Contact Email"
-  phone: string // from "Contact Mobile Phone 1"
-  linkedinUrl: string // from "LinkedIn_URL"
-
-  // Company data (from CSV)
-  sponsor: string // from "SPONSOR_NAME"
-  lives: number // from "LIVES"
-  providerName: string // from "PROVIDER_NAME_NORM"
-  providerState: string // from "PROVIDER_STATE"
-  firmState: string // from "firm_state"
-  firmStateClass: string // from "firm_state_class"
-
-  // Funding data (from CSV)
-  fundingStatus: string // from "Funding_Status_Est"
-  fundingConfidence: string // from "Funding_Confidence"
-  fundingSource: string // from "Funding_Source"
-  stopLossVerified: boolean // from "StopLoss_Verified"
-
-  // Workflow
+  subject: string
+  message: string
   status: string
   created_at: string
 }
@@ -78,27 +61,8 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
     name: raw?.contact_full_name || raw?.["Contact Full Name"] || "",
     company: raw?.company_name || raw?.["Company Name"] || "",
     title: raw?.contact_job_title || raw?.["Contact Job Title"] || "",
-    email: raw?.contact_email || raw?.["Contact Email"] || "",
-    phone: raw?.contact_mobile_phone_1
-      ? String(raw.contact_mobile_phone_1)
-      : raw?.["Contact Mobile Phone 1"]
-        ? String(raw["Contact Mobile Phone 1"])
-        : "",
-    linkedinUrl: raw?.linkedin_url || raw?.["LinkedIn_URL"] || "",
-
-    // Company data - prioritize snake_case DB columns
-    sponsor: raw?.sponsor_name || raw?.["SPONSOR_NAME"] || "",
-    lives: raw?.lives || raw?.LIVES || 0,
-    providerName: raw?.provider_name_norm || raw?.["PROVIDER_NAME_NORM"] || "",
-    providerState: raw?.provider_state || raw?.["PROVIDER_STATE"] || "",
-    firmState: raw?.firm_state || "",
-    firmStateClass: raw?.firm_state_class || "",
-
-    // Funding data - prioritize snake_case DB columns
-    fundingStatus: raw?.funding_status_est || raw?.["Funding_Status_Est"] || "",
-    fundingConfidence: raw?.funding_confidence || raw?.["Funding_Confidence"] || "",
-    fundingSource: raw?.funding_source || raw?.["Funding_Source"] || "",
-    stopLossVerified: raw?.stoploss_verified ?? raw?.["StopLoss_Verified"] ?? false,
+    subject: raw?.generated_subject_line || "",
+    message: raw?.generated_email_body || "",
 
     // Workflow
     status: raw?.status || "PENDING",
