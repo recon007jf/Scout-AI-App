@@ -23,19 +23,26 @@ export async function POST(req: Request) {
   }
 
   try {
-    const uiPayload = await req.json()
+    const body = await req.json()
 
-    const backendPayload = {
-      dossier_id: uiPayload.id || uiPayload.target_id,
-      action: "generate",
-      user_email: uiPayload.user_email || "admin@pacificaisystems.com", // TODO: Extract from session
-      draft_content: uiPayload.currentDraft?.body || uiPayload.feedback,
-      draft_subject: uiPayload.currentDraft?.subject,
-      feedback: uiPayload.feedback,
-      regenerate: uiPayload.regenerate || false,
+    const rawId = body.id || body.targetId || body.dossier_id
+    const dossier_id = rawId ? String(rawId) : null
+
+    if (!dossier_id) {
+      console.error("[Proxy] Validation failed: Missing dossier_id")
+      return NextResponse.json({ error: "Missing dossier_id" }, { status: 400 })
     }
 
-    console.log("[v0] Transformed payload:", JSON.stringify(backendPayload, null, 2))
+    const payload = {
+      dossier_id: dossier_id,
+      action: "generate",
+      user_email: body.user_email || "admin@pacificaisystems.com",
+      // Include optional fields if present
+      draft_content: body.draft_content || body.currentDraft?.body || body.feedback,
+      draft_subject: body.draft_subject || body.currentDraft?.subject,
+    }
+
+    console.log("[v0] Validated payload:", JSON.stringify(payload, null, 2))
 
     const upstream = await fetch(`${backendUrl}/api/drafts/action`, {
       method: "POST",
@@ -43,7 +50,7 @@ export async function POST(req: Request) {
         "Content-Type": "application/json",
         "x-scout-internal-secret": internalSecret.trim(),
       },
-      body: JSON.stringify(backendPayload),
+      body: JSON.stringify(payload),
     })
 
     const status = upstream.status
