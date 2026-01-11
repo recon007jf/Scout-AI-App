@@ -75,23 +75,10 @@ export async function skipTarget(targetId: string): Promise<void> {
   }
 }
 
-export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
-  console.log("[v0] 🚀 generateDraftForTarget called for:", target.id, target.name)
-
-  /*
-  const existingDraft = await checkExistingDraft(target.id)
-  console.log("[v0] Existing draft check result:", existingDraft)
-
-  if (existingDraft?.llm_email_subject && existingDraft?.llm_email_body) {
-    console.log("[v0] ✅ Using existing LLM draft from database")
-    return {
-      subject: existingDraft.llm_email_subject,
-      body: existingDraft.llm_email_body,
-    }
-  }
-  */
-
-  console.log("[v0] 🤖 FORCING NEW DRAFT GENERATION (generate-once check disabled for debugging)")
+export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{
+  subject: string
+  body: string
+}> {
   console.log("[v0] Request payload:", {
     targetId: target.id,
     name: target.name,
@@ -116,23 +103,74 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
 
   console.log("[v0] API response status:", response.status)
 
+  // Handle 202 Accepted (draft is generating in background)
+  if (response.status === 202) {
+    const data = await response.json()
+    console.log("[v0] Draft generation started (202 Accepted):", data)
+
+    // Poll every 2 seconds until draft is ready
+    return await pollForDraft(target.id, 30) // 30 attempts = 60 seconds max
+  }
+
   if (!response.ok) {
     const errorText = await response.text()
-    console.error("[v0] ❌ API error response:", errorText)
+    console.error("[v0] API error response:", errorText)
     throw new Error(`Failed to generate draft: ${response.status} ${errorText}`)
   }
 
   const data = await response.json()
-  console.log("[v0] ✅ API returned draft:", data)
+  console.log("[v0] API returned draft (200 OK):", data)
 
-  console.log("[v0] 💾 Saving draft to database...")
+  // Save draft to database for persistence
+  console.log("[v0] Saving draft to database...")
   await saveDraftToDatabase(target.id, data.subject, data.body)
-  console.log("[v0] ✅ Draft saved to database")
+  console.log("[v0] Draft saved to database")
 
   return {
     subject: data.subject,
     body: data.body,
   }
+}
+
+// New polling function for async draft generation
+async function pollForDraft(
+  targetId: string,
+  maxAttempts: number,
+): Promise<{
+  subject: string
+  body: string
+}> {
+  console.log("[v0] Polling for draft completion (targetId:", targetId, ")")
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    // Wait 2 seconds before checking
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+
+    console.log(`[v0] Poll attempt ${attempt}/${maxAttempts}`)
+
+    // Check if draft is ready in database
+    const supabase = createBrowserClient()
+    const { data, error } = await supabase
+      .from("target_brokers")
+      .select("llm_email_subject, llm_email_body")
+      .eq("id", targetId)
+      .single()
+
+    if (error) {
+      console.error("[v0] Poll error:", error)
+      continue
+    }
+
+    if (data?.llm_email_subject && data?.llm_email_body) {
+      console.log("[v0] Draft ready after", attempt, "attempts")
+      return {
+        subject: data.llm_email_subject,
+        body: data.llm_email_body,
+      }
+    }
+  }
+
+  throw new Error("Draft generation timed out after 60 seconds")
 }
 
 export async function saveDraftToDatabase(targetId: string, subject: string, body: string): Promise<void> {
@@ -185,16 +223,17 @@ export async function regenerateDraftWithFeedback(
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error("[v0] ❌ API error response:", errorText)
+    console.error("[v0] API error response:", errorText)
     throw new Error(`Failed to regenerate draft: ${response.status} ${errorText}`)
   }
 
   const data = await response.json()
-  console.log("[v0] ✅ API returned draft:", data)
+  console.log("[v0] API returned draft (200 OK):", data)
 
-  console.log("[v0] 💾 Saving draft to database...")
+  // Save draft to database for persistence
+  console.log("[v0] Saving draft to database...")
   await saveDraftToDatabase(target.id, data.subject, data.body)
-  console.log("[v0] ✅ Draft saved to database")
+  console.log("[v0] Draft saved to database")
 
   return {
     subject: data.subject,

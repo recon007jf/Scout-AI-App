@@ -130,11 +130,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }, [])
 
   useEffect(() => {
-    const targetId = selectedTarget?.id
-    if (!targetId) {
-      console.log("[v0] SKIP: No selectedTarget")
-      return
-    }
+    if (!selectedTarget) return
+
+    const targetId = selectedTarget.id
 
     if (draftCache[targetId]) {
       console.log("[v0] SKIP: Draft already in cache for:", targetId)
@@ -142,26 +140,17 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
 
     console.log("[v0] ==> STARTING DRAFT GENERATION for target:", targetId)
-    console.log("[v0] Target data:", {
-      id: selectedTarget.id,
-      name: selectedTarget.name,
-      company: selectedTarget.company,
-      title: selectedTarget.title,
-      email_subject: selectedTarget.email_subject,
-      email_body: selectedTarget.email_body,
-    })
 
-    // Generate draft (function handles checking database first)
     const generateDraft = async () => {
       setIsGeneratingDraft(true)
       try {
         console.log("[v0] Calling generateDraftForTarget...")
         const draft = await generateDraftForTarget(selectedTarget)
-        console.log("[v0] ✅ Draft generated successfully:", draft)
+        console.log("[v0] Draft generated successfully:", draft)
         setDraftCache((prev) => ({ ...prev, [targetId]: draft }))
-        console.log("[v0] ✅ Draft saved to cache")
+        console.log("[v0] Draft saved to cache")
       } catch (error) {
-        console.error("[v0] ❌ Failed to generate draft:", error)
+        console.error("[v0] Failed to generate draft:", error)
         toast({
           title: "Draft Generation Failed",
           description: error instanceof Error ? error.message : "Could not generate email draft. Please try again.",

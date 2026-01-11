@@ -1,95 +1,40 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { generateText } from "ai"
+
+const PYTHON_URL = process.env.CLOUD_RUN_BACKEND_URL || "http://127.0.0.1:8000"
+const INTERNAL_SECRET = process.env.SCOUT_INTERNAL_PROBE_KEY || "dev-secret"
 
 export async function POST(req: NextRequest) {
   try {
-    console.log("[v0] Generate draft API called")
-    const { targetId, name, company, title, region, tier, userFeedback, currentDraft } = await req.json()
+    const body = await req.json()
 
-    console.log("[v0] Request data:", { targetId, name, company, title, region, tier, hasFeedback: !!userFeedback })
+    console.log("[v0] Proxying request to Python backend:", PYTHON_URL)
 
-    if (!name || !company) {
-      console.error("[v0] ❌ Missing required fields")
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
-    }
-
-    let prompt: string
-
-    if (userFeedback && currentDraft) {
-      prompt = `You are a sales development representative at Pacific AI Systems, a benefits advisory firm.
-
-You previously wrote this email draft:
-
-SUBJECT: ${currentDraft.subject}
-
-BODY:
-${currentDraft.body}
-
-The user has provided feedback to improve the draft:
-"${userFeedback}"
-
-Please regenerate the email incorporating this feedback while maintaining the core value proposition.
-
-Target details:
-- Name: ${name}
-- Title: ${title || "Benefits Decision Maker"}
-- Company: ${company}
-- Region: ${region || "Unknown"}
-- Tier: ${tier || "Unknown"}
-
-Return ONLY a JSON object with this structure:
-{
-  "subject": "updated email subject line here",
-  "body": "updated email body here"
-}
-
-Do not include any other text or explanation.`
-    } else {
-      prompt = `You are a sales development representative at Pacific AI Systems, a benefits advisory firm.
-
-Write a personalized outreach email to:
-- Name: ${name}
-- Title: ${title || "Benefits Decision Maker"}
-- Company: ${company}
-- Region: ${region || "Unknown"}
-- Tier: ${tier || "Unknown"}
-
-The email should:
-1. Be professional but warm and conversational
-2. Reference their role and company context
-3. Highlight a relevant pain point in benefits administration
-4. Offer a specific value proposition related to Scout AI
-5. Include a clear, low-friction call to action
-6. Be 150-200 words maximum
-
-Return ONLY a JSON object with this structure:
-{
-  "subject": "email subject line here",
-  "body": "email body here"
-}
-
-Do not include any other text or explanation.`
-    }
-
-    console.log("[v0] 🤖 Calling LLM with model: openai/gpt-4o-mini")
-    const { text } = await generateText({
-      model: "openai/gpt-4o-mini",
-      prompt,
+    // Forward to Python Backend with Auth Header
+    const pythonResponse = await fetch(`${PYTHON_URL}/api/scout/generate-draft`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Scout-Internal-Secret": INTERNAL_SECRET,
+      },
+      body: JSON.stringify(body),
     })
 
-    console.log("[v0] ✅ LLM response received:", text.substring(0, 100) + "...")
+    console.log("[v0] Python backend response status:", pythonResponse.status)
 
-    // Parse the generated JSON
-    const draft = JSON.parse(text.trim())
+    // Parse Response
+    let data
+    try {
+      data = await pythonResponse.json()
+    } catch (e) {
+      console.error("[v0] Failed to parse Python response:", e)
+      return NextResponse.json({ error: "Draft Engine Unavailable" }, { status: 503 })
+    }
 
-    console.log("[v0] ✅ Draft parsed successfully")
-    return NextResponse.json({
-      targetId,
-      subject: draft.subject,
-      body: draft.body,
-    })
-  } catch (error: any) {
-    console.error("[v0] ❌ Generate Draft API Error:", error)
-    return NextResponse.json({ error: error.message || "Failed to generate draft" }, { status: 500 })
+    // PASS-THROUGH: Return exact status and data to UI
+    // If Python returns 202, we return 202. If 200, we return 200.
+    return NextResponse.json(data, { status: pythonResponse.status })
+  } catch (error) {
+    console.error("[v0] Proxy Connection Failed:", error)
+    return NextResponse.json({ error: "Proxy Connection Failed" }, { status: 500 })
   }
 }
