@@ -79,15 +79,6 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   console.log("[v0] ==> STARTING DRAFT GENERATION for target:", target.id)
   console.log("[v0] Target data:", JSON.stringify(target, null, 2))
 
-  const existingDraft = await checkExistingDraft(target.id)
-  if (existingDraft.llm_email_subject && existingDraft.llm_email_body) {
-    console.log("[v0] ✅ Using existing draft from database")
-    return {
-      subject: existingDraft.llm_email_subject,
-      body: existingDraft.llm_email_body,
-    }
-  }
-
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -248,7 +239,6 @@ export async function regenerateDraft(targetId: string): Promise<{ subject: stri
 
   if (!response.ok) {
     const errorText = await response.text()
-    console.error("[v0] API error response:", errorText)
     throw new Error(`Failed to regenerate draft: ${response.status} ${errorText}`)
   }
 

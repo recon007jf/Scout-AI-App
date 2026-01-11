@@ -137,15 +137,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
     const targetId = selectedTarget.id
 
-    // Check if we already have a draft in cache
-    if (draftCache[targetId]) {
-      console.log("[v0] SKIP: Draft already in cache for:", targetId)
-      return
-    }
-
-    // Check if draft exists in database first (from email_subject/email_body fields)
+    // Load existing draft from database if available
     if (selectedTarget.email_subject && selectedTarget.email_body) {
-      console.log("[v0] Loading existing draft from database for:", targetId)
       setDraftCache((prev) => ({
         ...prev,
         [targetId]: {
@@ -153,55 +146,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           body: selectedTarget.email_body || "",
         },
       }))
-      return
     }
-
-    // No draft exists - generate one
-    console.log("[v0] No existing draft found, generating new draft for:", targetId)
-    const generateDraft = async () => {
-      setIsGeneratingDraft(true)
-      try {
-        console.log("[v0] Calling generateDraftForTarget...")
-        const draft = await generateDraftForTarget(selectedTarget)
-        console.log("[v0] Draft generated successfully:", draft)
-
-        if (draft.subject && draft.body && !draft.body.includes("[LLM PLACEHOLDER]")) {
-          setDraftCache((prev) => ({ ...prev, [targetId]: draft }))
-          console.log("[v0] Draft saved to cache")
-        } else {
-          console.log("[v0] Draft generation returned placeholder, not caching")
-        }
-      } catch (error) {
-        console.error("[v0] Failed to generate draft:", error)
-        toast({
-          title: "Draft Generation Failed",
-          description: error instanceof Error ? error.message : "Could not generate email draft. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsGeneratingDraft(false)
-      }
-    }
-
-    generateDraft()
-  }, [selectedTarget, draftCache]) // Changed from selectedTarget?.id to selectedTarget to match hook's usage
-
-  useEffect(() => {
-    if (!selectedTarget?.id) return
-
-    const draft = draftCache[selectedTarget.id]
-    if (!draft) return
-
-    const hasPlaceholders =
-      draft.body.includes("[LLM PLACEHOLDER]") ||
-      draft.body.includes("[Your Name]") ||
-      draft.body.includes("[Your Title]")
-
-    if (hasPlaceholders && !isRegenerating) {
-      console.log("[v0] 🔧 Auto-healing placeholder draft for:", selectedTarget.id)
-      handleRegenerate()
-    }
-  }, [selectedTarget?.id, draftCache, isRegenerating])
+  }, [selectedTarget])
 
   const checkOutlookConnection = async () => {
     try {
@@ -412,111 +358,78 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleRegenerate = async () => {
-    if (selectedTarget) {
-      setIsRegenerating(true)
-      console.log("[v0] 🔄 Starting FORCE regeneration for target:", selectedTarget.id)
+    if (!selectedTarget) return
 
-      try {
-        const result = await regenerateDraft(selectedTarget.id)
+    setIsRegenerating(true)
 
-        const subject = result.subject ?? ""
-        const body = result.body ?? ""
+    try {
+      const result = await regenerateDraft(selectedTarget.id)
 
-        const hasPlaceholders =
-          body.includes("[Your Name]") ||
-          body.includes("[Your Title]") ||
-          body.includes("[Your Contact Information]") ||
-          body.includes("[LLM PLACEHOLDER]")
+      setDraftCache((prev) => ({
+        ...prev,
+        [selectedTarget.id]: { subject: result.subject, body: result.body },
+      }))
+      setEditedSubject(result.subject)
+      setEditedBody(result.body)
 
-        setDraftCache((prev) => ({
-          ...prev,
-          [selectedTarget.id]: { subject, body },
-        }))
-        setEditedSubject(subject)
-        setEditedBody(body)
-
-        if (subject && body && !hasPlaceholders) {
-          console.log("[v0] ✅ Draft regenerated successfully:", selectedTarget.id)
-          toast({
-            title: "Draft Regenerated",
-            description: "A new draft has been generated.",
-          })
-        } else {
-          console.error("[v0] ⚠️ Regeneration returned placeholder content")
-          toast({
-            title: "Draft Generated with Placeholders",
-            description: "Backend returned placeholder content. AG needs to fix backend prompts.",
-            variant: "destructive",
-          })
-        }
-      } catch (error) {
-        console.error("[v0] ❌ Failed to regenerate draft:", error)
-        toast({
-          title: "Regeneration Failed",
-          description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsRegenerating(false)
-      }
+      toast({
+        title: "Draft Regenerated",
+        description: "A new draft has been generated.",
+      })
+    } catch (error) {
+      console.error("[v0] Failed to regenerate draft:", error)
+      toast({
+        title: "Regeneration Failed",
+        description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRegenerating(false)
     }
   }
 
   const handleRegenerateWithComments = async () => {
-    if (selectedTarget && regenerateComments.trim()) {
-      setIsRegenerating(true)
-      console.log("[v0] 🔄 Starting FORCE regeneration with comments for target:", selectedTarget.id)
+    if (!selectedTarget || !regenerateComments.trim()) {
+      toast({
+        title: "Comments Required",
+        description: "Please provide feedback for regeneration.",
+        variant: "destructive",
+      })
+      return
+    }
 
-      try {
-        const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
+    setIsRegenerating(true)
 
-        const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
+    try {
+      const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
 
-        const subject = result.subject ?? ""
-        const body = result.body ?? ""
+      const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
-        const hasPlaceholders =
-          body.includes("[Your Name]") ||
-          body.includes("[Your Title]") ||
-          body.includes("[Your Contact Information]") ||
-          body.includes("[LLM PLACEHOLDER]")
+      setDraftCache((prev) => ({
+        ...prev,
+        [selectedTarget.id]: { subject: result.subject, body: result.body },
+      }))
 
-        setDraftCache((prev) => ({
-          ...prev,
-          [selectedTarget.id]: { subject, body },
-        }))
+      setEditedSubject(result.subject)
+      setEditedBody(result.body)
+      setRegenerateComments("")
+      setShowRegenerateInput(false)
+      setShowCommentDialog(false)
 
-        setEditedSubject(subject)
-        setEditedBody(body)
-        setRegenerateComments("")
-        setShowRegenerateInput(false)
-        setShowCommentDialog(false)
-
-        if (subject && body && !hasPlaceholders) {
-          console.log("[v0] ✅ Draft regenerated with feedback:", selectedTarget.id)
-          toast({
-            title: "Draft Updated",
-            description: "Your feedback has been incorporated.",
-          })
-        } else {
-          console.error("[v0] ⚠️ Regeneration with feedback returned placeholder content")
-          toast({
-            title: "Draft Generated with Placeholders",
-            description: "Backend returned placeholder content. AG needs to fix backend prompts.",
-            variant: "destructive",
-          })
-        }
-      } catch (error) {
-        console.error("[v0] ❌ Failed to regenerate draft with feedback:", error)
-        toast({
-          title: "Regeneration Failed",
-          description:
-            error instanceof Error ? error.message : "Could not regenerate draft with feedback. Please try again.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsRegenerating(false)
-      }
+      toast({
+        title: "Draft Updated",
+        description: "Your feedback has been incorporated.",
+      })
+    } catch (error) {
+      console.error("[v0] Failed to regenerate draft with feedback:", error)
+      toast({
+        title: "Regeneration Failed",
+        description:
+          error instanceof Error ? error.message : "Could not regenerate draft with feedback. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRegenerating(false)
     }
   }
 
@@ -716,9 +629,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        {/* Right Panel - Draft Details */}
+        <div className="flex-1 flex flex-col overflow-hidden">
           {selectedTarget && (
-            <div className="space-y-4">
+            <div className="flex-1 flex flex-col overflow-hidden">
               <Card className="p-6 bg-card/60">
                 <div className="flex items-start gap-4">
                   <Avatar className="w-16 h-16 border-2 border-border">
@@ -826,143 +740,110 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                 <TabsContent value="draft" className="space-y-4 mt-4">
                   <Card className="p-6 bg-card/60">
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-sm font-medium text-muted-foreground">SUBJECT LINE</label>
-                        {!isEditingEmail && (
-                          <Button variant="ghost" size="sm" onClick={handleStartEdit} className="h-8">
-                            <Pencil className="w-3 h-3 mr-1" />
-                            Edit Email
-                          </Button>
-                        )}
-                      </div>
-
-                      {isEditingEmail ? (
-                        <Input
-                          value={editedSubject}
-                          onChange={(e) => setEditedSubject(e.target.value)}
-                          className="font-medium"
-                          placeholder="Enter subject line..."
-                        />
-                      ) : isGeneratingDraft ? (
-                        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-sm text-muted-foreground">Generating subject...</span>
-                        </div>
-                      ) : selectedTarget && draftCache[selectedTarget.id]?.subject ? (
-                        <h3 className="text-lg font-medium">{draftCache[selectedTarget.id].subject}</h3>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">
-                          No draft yet - click "Regenerate with AI" to create one
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mb-6">
-                      <label className="text-sm font-medium text-muted-foreground mb-2 block">EMAIL BODY</label>
-                      {isEditingEmail ? (
-                        <Textarea
-                          value={editedBody}
-                          onChange={(e) => setEditedBody(e.target.value)}
-                          className="min-h-[300px] resize-none font-sans"
-                          placeholder="Enter email body..."
-                        />
-                      ) : isGeneratingDraft ? (
-                        <div className="flex flex-col items-center justify-center gap-3 p-8 bg-muted/50 rounded-md min-h-[300px]">
-                          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                          <div className="text-center">
-                            <p className="text-sm font-medium mb-1">Generating personalized email...</p>
-                            <p className="text-xs text-muted-foreground">This may take a few moments</p>
-                          </div>
-                        </div>
-                      ) : selectedTarget && draftCache[selectedTarget.id]?.body ? (
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">
-                          {draftCache[selectedTarget.id].body}
-                        </div>
-                      ) : (
-                        <div className="p-8 bg-muted/50 rounded-md text-center">
-                          <p className="text-sm text-muted-foreground mb-2">No draft available</p>
-                          <p className="text-xs text-muted-foreground">
-                            Click "Regenerate with AI" below to generate an email draft
-                          </p>
-                        </div>
-                      )}
-                    </div>
-
-                    {isEditingEmail && (
-                      <div className="flex gap-2 pt-4 border-t border-border mb-4">
-                        <Button size="sm" onClick={handleSaveEdit} className="bg-primary">
-                          <Check className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={handleCancelEdit} className="bg-transparent">
-                          <X className="w-4 h-4 mr-2" />
-                          Cancel
-                        </Button>
-                      </div>
-                    )}
-
-                    {!isEditingEmail && selectedTarget && (
-                      <div className="flex gap-2 mt-4">
-                        <Button onClick={handleRegenerate} disabled={isRegenerating} variant="outline" size="sm">
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          {isRegenerating ? "Regenerating..." : "Regenerate with AI"}
-                        </Button>
+                    {!currentDraft && !isGeneratingDraft && (
+                      <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <p className="text-muted-foreground mb-4">No draft available yet.</p>
                         <Button
-                          onClick={() => setShowCommentDialog(true)}
-                          disabled={isRegenerating}
-                          variant="outline"
-                          size="sm"
+                          onClick={async () => {
+                            setIsGeneratingDraft(true)
+                            try {
+                              const draft = await generateDraftForTarget(selectedTarget)
+                              setDraftCache((prev) => ({ ...prev, [selectedTarget.id]: draft }))
+                            } catch (error) {
+                              toast({
+                                title: "Generation Failed",
+                                description: "Could not generate draft. Please try again.",
+                                variant: "destructive",
+                              })
+                            } finally {
+                              setIsGeneratingDraft(false)
+                            }
+                          }}
                         >
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Regenerate with Comments
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Generate Draft
                         </Button>
                       </div>
                     )}
 
-                    {showRegenerateInput && (
-                      <div className="space-y-2 pt-4 border-t border-border mt-4">
-                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
-                          Provide guidance for regeneration
-                        </label>
-                        <Textarea
-                          value={regenerateComments}
-                          onChange={(e) => setRegenerateComments(e.target.value)}
-                          placeholder="E.g., Make it more casual, add a specific reference to their recent acquisition, focus on cost savings..."
-                          className="w-full min-h-[80px] text-sm"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={handleRegenerateWithComments}
-                            disabled={isRegenerating || !regenerateComments.trim()}
-                            className="bg-primary"
-                          >
-                            {isRegenerating ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Regenerating...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                Regenerate
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setShowRegenerateInput(false)
-                              setRegenerateComments("")
-                            }}
-                            className="bg-transparent"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
+                    {isGeneratingDraft && (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="ml-3 text-muted-foreground">Generating draft...</p>
                       </div>
+                    )}
+
+                    {currentDraft && (
+                      <>
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-medium text-muted-foreground">SUBJECT LINE</h3>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Edit Email
+                              </Button>
+                              {!isEditingEmail && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleRegenerate}
+                                    disabled={isRegenerating}
+                                  >
+                                    {isRegenerating ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Sparkles className="mr-2 h-4 w-4" />
+                                    )}
+                                    Regenerate with AI
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowCommentDialog(true)}
+                                    disabled={isRegenerating}
+                                  >
+                                    <MessageSquare className="mr-2 h-4 w-4" />
+                                    Regenerate with Comments
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {isEditingEmail ? (
+                            <>
+                              <Input
+                                value={editedSubject}
+                                onChange={(e) => setEditedSubject(e.target.value)}
+                                placeholder="Email subject..."
+                                className="mb-4"
+                              />
+                              <Textarea
+                                value={editedBody}
+                                onChange={(e) => setEditedBody(e.target.value)}
+                                placeholder="Email body..."
+                                className="min-h-[300px] font-mono text-sm"
+                              />
+                              <div className="flex gap-2 mt-4">
+                                <Button onClick={handleSaveEdit}>
+                                  <Check className="mr-2 h-4 w-4" />
+                                  Save Changes
+                                </Button>
+                                <Button variant="outline" onClick={handleCancelEdit}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-lg font-semibold mb-6">{currentDraft.subject}</div>
+                              <div className="prose prose-sm max-w-none whitespace-pre-wrap">{currentDraft.body}</div>
+                            </>
+                          )}
+                        </div>
+                      </>
                     )}
                   </Card>
 
@@ -1160,6 +1041,35 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           onResume={handleThresholdResume}
         />
       </div>
+
+      {/* Comment Dialog */}
+      {showCommentDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-[500px] p-6">
+            <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
+            <Textarea
+              value={regenerateComments}
+              onChange={(e) => setRegenerateComments(e.target.value)}
+              placeholder="Tell the AI what to change or improve..."
+              className="min-h-[120px] mb-4"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleRegenerateWithComments} disabled={!regenerateComments.trim() || isRegenerating}>
+                {isRegenerating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="mr-2 h-4 w-4" />
+                )}
+                Regenerate
+              </Button>
+              <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
+                Cancel
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
         Build: v249 | Time: {new Date().toISOString()} | Backend: ...7752
       </div>
