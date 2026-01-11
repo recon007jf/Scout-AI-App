@@ -3,9 +3,13 @@ import { generateText } from "ai"
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("[v0] Generate draft API called")
     const { targetId, name, company, title, region, tier, userFeedback, currentDraft } = await req.json()
 
+    console.log("[v0] Request data:", { targetId, name, company, title, region, tier, hasFeedback: !!userFeedback })
+
     if (!name || !company) {
+      console.error("[v0] ❌ Missing required fields")
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
@@ -67,21 +71,25 @@ Return ONLY a JSON object with this structure:
 Do not include any other text or explanation.`
     }
 
+    console.log("[v0] 🤖 Calling LLM with model: openai/gpt-4o-mini")
     const { text } = await generateText({
       model: "openai/gpt-4o-mini",
       prompt,
     })
 
+    console.log("[v0] ✅ LLM response received:", text.substring(0, 100) + "...")
+
     // Parse the generated JSON
     const draft = JSON.parse(text.trim())
 
+    console.log("[v0] ✅ Draft parsed successfully")
     return NextResponse.json({
       targetId,
       subject: draft.subject,
       body: draft.body,
     })
   } catch (error: any) {
-    console.error("[Generate Draft] Error:", error)
+    console.error("[v0] ❌ Generate Draft API Error:", error)
     return NextResponse.json({ error: error.message || "Failed to generate draft" }, { status: 500 })
   }
 }
