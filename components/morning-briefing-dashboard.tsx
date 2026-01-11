@@ -276,8 +276,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
   const handleStartEdit = () => {
     if (selectedTarget?.draft) {
-      setEditedSubject(selectedTarget.draft.subject)
-      setEditedBody(selectedTarget.draft.body)
+      setEditedSubject(selectedTarget.draft.subject || "")
+      setEditedBody(selectedTarget.draft.body || "")
       setIsEditingEmail(true)
       setShowRegenerateInput(false)
     }
@@ -286,7 +286,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const handleSaveEdit = async () => {
     if (selectedTarget?.draft) {
       const updatedTargets = targets.map((t) =>
-        t.id === selectedTarget.id ? { ...t, draft: { ...t.draft, subject: editedSubject, body: editedBody } } : t,
+        t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject: editedSubject, body: editedBody } } : t,
       )
       setTargets(updatedTargets)
       setIsEditingEmail(false)
@@ -311,7 +311,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       try {
         const { subject, body } = await regenerateDraft(selectedTarget.id)
         const updatedTargets = targets.map((t) =>
-          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft, subject, body } } : t,
+          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject, body } } : t,
         )
         setTargets(updatedTargets)
         setEditedSubject(subject)
@@ -331,7 +331,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       try {
         const { subject, body } = await regenerateDraft(selectedTarget.id, regenerateComments)
         const updatedTargets = targets.map((t) =>
-          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft, subject, body } } : t,
+          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject, body } } : t,
         )
         setTargets(updatedTargets)
         setEditedSubject(subject)
@@ -683,9 +683,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           </div>
                           {selectedTarget?.draft && (
                             <div className="flex gap-2 pt-2 text-xs text-muted-foreground">
-                              <span>Tone: {selectedTarget.draft.tone}</span>
+                              <span>Tone: {selectedTarget.draft?.tone || "Not specified"}</span>
                               <span>•</span>
-                              <span>{selectedTarget.draft.wordCount} words</span>
+                              <span>{selectedTarget.draft?.wordCount || 0} words</span>
                             </div>
                           )}
                         </div>
@@ -903,13 +903,17 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Company Size
                             </label>
-                            <p className="text-sm text-foreground mt-1">{selectedTarget.dossier.companySize}</p>
+                            <p className="text-sm text-foreground mt-1">
+                              {selectedTarget.dossier?.companySize || "Not available"}
+                            </p>
                           </div>
                           <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Industry
                             </label>
-                            <p className="text-sm text-foreground mt-1">{selectedTarget.dossier.industry}</p>
+                            <p className="text-sm text-foreground mt-1">
+                              {selectedTarget.dossier?.industry || "Not available"}
+                            </p>
                           </div>
                         </div>
                         <div>
@@ -919,12 +923,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           <div className="flex items-center gap-3">
                             <div className="flex-1 bg-muted rounded-full h-2">
                               <div
-                                className="bg-primary h-2 rounded-full transition-all"
-                                style={{ width: `${selectedTarget.dossier.opportunityScore}%` }}
+                                className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                                style={{ width: `${selectedTarget.dossier?.opportunityScore || 0}%` }}
                               />
                             </div>
                             <span className="text-sm font-semibold text-foreground">
-                              {selectedTarget.dossier.opportunityScore}%
+                              {selectedTarget.dossier?.opportunityScore || 0}%
                             </span>
                           </div>
                         </div>
