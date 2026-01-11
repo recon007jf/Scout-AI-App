@@ -41,7 +41,7 @@ import {
 import { cn } from "@/lib/utils"
 import { PauseDurationModal } from "@/components/pause-duration-modal"
 import { ThresholdWarningModal } from "@/components/threshold-warning-modal"
-import { getMorningQueue } from "@/lib/api/morning-queue"
+import { getMorningQueue, generateDraftForTarget } from "@/lib/api/morning-queue"
 
 type Target = {
   id: string
@@ -110,6 +110,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [showPauseDurationModal, setShowPauseDurationModal] = useState(false)
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
+  const [generatedDrafts, setGeneratedDrafts] = useState<Map<string, { subject: string; body: string }>>(new Map())
 
   useEffect(() => {
     loadData()
@@ -124,6 +126,32 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }, 60000)
     return () => clearInterval(interval)
   }, [])
+
+  useEffect(() => {
+    const targetId = selectedTarget?.id
+    if (!targetId || generatedDrafts.has(targetId)) {
+      return
+    }
+
+    const generateDraft = async () => {
+      setIsGeneratingDraft(true)
+      try {
+        const draft = await generateDraftForTarget(selectedTarget)
+        setGeneratedDrafts((prev) => new Map(prev).set(targetId, draft))
+      } catch (error) {
+        console.error("[v0] Failed to generate draft:", error)
+        toast({
+          title: "Draft Generation Failed",
+          description: "Could not generate email draft. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsGeneratingDraft(false)
+      }
+    }
+
+    generateDraft()
+  }, [selectedTarget])
 
   const checkOutlookConnection = async () => {
     try {
@@ -419,6 +447,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
+  const currentDraft = selectedTarget ? generatedDrafts.get(selectedTarget.id) : null
+
   // This prevents the white-screen crash while the system loads the batch
   if (!selectedTarget && activeTargets.length > 0) {
     return (
@@ -670,7 +700,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                               Subject Line
                             </label>
                             <p className="text-foreground font-medium mt-1.5">
-                              {selectedTarget?.draft?.subject || "No subject available"}
+                              {currentDraft?.subject || "No subject available"}
                             </p>
                           </div>
                           <div>
@@ -678,10 +708,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                               Email Body
                             </label>
                             <div className="mt-1.5 text-foreground whitespace-pre-wrap leading-relaxed">
-                              {selectedTarget?.draft?.body || "No email body available"}
+                              {currentDraft?.body || "No email body available"}
                             </div>
                           </div>
-                          {selectedTarget?.draft && (
+                          {currentDraft && (
                             <div className="flex gap-2 pt-2 text-xs text-muted-foreground">
                               <span>Tone: {selectedTarget.draft?.tone || "Not specified"}</span>
                               <span>•</span>
