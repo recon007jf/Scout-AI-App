@@ -80,6 +80,8 @@ type Target = {
     recentActivity: string[]
     painPoints: string[]
   }
+  email_subject?: string
+  email_body?: string
 }
 
 type PauseInfo = {
@@ -129,16 +131,32 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
   useEffect(() => {
     const targetId = selectedTarget?.id
-    if (!targetId || draftCache[targetId]) {
+    if (!targetId) return
+
+    // Check if draft exists in draftCache or database
+    if (draftCache[targetId]) {
       return
     }
 
+    // Check if draft exists on target from database
+    if (selectedTarget.email_subject && selectedTarget.email_body) {
+      setDraftCache((prev) => ({
+        ...prev,
+        [targetId]: {
+          subject: selectedTarget.email_subject!,
+          body: selectedTarget.email_body!,
+        },
+      }))
+      return
+    }
+
+    // Only generate if no draft exists anywhere
     const generateDraft = async () => {
       setIsGeneratingDraft(true)
       try {
         const draft = await generateDraftForTarget(selectedTarget)
         setDraftCache((prev) => ({ ...prev, [targetId]: draft }))
-        console.log("[v0] Draft generated for:", targetId)
+        console.log("[v0] Draft generated and saved for:", targetId)
       } catch (error) {
         console.error("[v0] Failed to generate draft:", error)
         toast({
