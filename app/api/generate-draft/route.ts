@@ -3,13 +3,45 @@ import { generateText } from "ai"
 
 export async function POST(req: NextRequest) {
   try {
-    const { targetId, name, company, title, region, tier } = await req.json()
+    const { targetId, name, company, title, region, tier, userFeedback, currentDraft } = await req.json()
 
     if (!name || !company) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
-    const prompt = `You are a sales development representative at Pacific AI Systems, a benefits advisory firm.
+    let prompt: string
+
+    if (userFeedback && currentDraft) {
+      prompt = `You are a sales development representative at Pacific AI Systems, a benefits advisory firm.
+
+You previously wrote this email draft:
+
+SUBJECT: ${currentDraft.subject}
+
+BODY:
+${currentDraft.body}
+
+The user has provided feedback to improve the draft:
+"${userFeedback}"
+
+Please regenerate the email incorporating this feedback while maintaining the core value proposition.
+
+Target details:
+- Name: ${name}
+- Title: ${title || "Benefits Decision Maker"}
+- Company: ${company}
+- Region: ${region || "Unknown"}
+- Tier: ${tier || "Unknown"}
+
+Return ONLY a JSON object with this structure:
+{
+  "subject": "updated email subject line here",
+  "body": "updated email body here"
+}
+
+Do not include any other text or explanation.`
+    } else {
+      prompt = `You are a sales development representative at Pacific AI Systems, a benefits advisory firm.
 
 Write a personalized outreach email to:
 - Name: ${name}
@@ -33,6 +65,7 @@ Return ONLY a JSON object with this structure:
 }
 
 Do not include any other text or explanation.`
+    }
 
     const { text } = await generateText({
       model: "openai/gpt-4o-mini",

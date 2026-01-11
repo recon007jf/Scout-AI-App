@@ -41,7 +41,7 @@ import {
 import { cn } from "@/lib/utils"
 import { PauseDurationModal } from "@/components/pause-duration-modal"
 import { ThresholdWarningModal } from "@/components/threshold-warning-modal"
-import { getMorningQueue, generateDraftForTarget } from "@/lib/api/morning-queue"
+import { getMorningQueue, generateDraftForTarget, regenerateDraftWithFeedback } from "@/lib/api/morning-queue"
 
 type Target = {
   id: string
@@ -112,6 +112,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
   const [generatedDrafts, setGeneratedDrafts] = useState<Map<string, { subject: string; body: string }>>(new Map())
+  const [draftCache, setDraftCache] = useState<Record<string, { subject: string; body: string }>>({})
 
   useEffect(() => {
     loadData()
@@ -312,11 +313,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleSaveEdit = async () => {
-    if (selectedTarget?.draft) {
-      const updatedTargets = targets.map((t) =>
-        t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject: editedSubject, body: editedBody } } : t,
-      )
-      setTargets(updatedTargets)
+    if (selectedTarget && selectedTarget.draft) {
+      // Update the draft cache immediately for UI
+      setDraftCache((prev) => ({
+        ...prev,
+        [selectedTarget.id]: { subject: editedSubject, body: editedBody },
+      }))
       setIsEditingEmail(false)
 
       try {
@@ -324,24 +326,26 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         console.log("[v0] Draft saved successfully:", selectedTarget.id)
       } catch (error) {
         console.error("[v0] Failed to save draft:", error)
-        const revertedTargets = targets.map((t) =>
-          t.id === selectedTarget.id ? { ...t, draft: selectedTarget.draft } : t,
-        )
-        setTargets(revertedTargets)
+        // Revert on error
+        setDraftCache((prev) => ({
+          ...prev,
+          [selectedTarget.id]: selectedTarget.draft,
+        }))
         setIsEditingEmail(true)
       }
     }
   }
 
   const handleRegenerateEmail = async () => {
-    if (selectedTarget?.draft) {
+    if (selectedTarget) {
       setIsRegenerating(true)
       try {
         const { subject, body } = await regenerateDraft(selectedTarget.id)
-        const updatedTargets = targets.map((t) =>
-          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject, body } } : t,
-        )
-        setTargets(updatedTargets)
+        // Update draft cache
+        setDraftCache((prev) => ({
+          ...prev,
+          [selectedTarget.id]: { subject, body },
+        }))
         setEditedSubject(subject)
         setEditedBody(body)
         console.log("[v0] Draft regenerated successfully:", selectedTarget.id)
@@ -354,21 +358,25 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleRegenerateWithComments = async () => {
-    if (selectedTarget?.draft && regenerateComments.trim()) {
+    if (selectedTarget && regenerateComments.trim()) {
       setIsRegenerating(true)
       try {
-        const { subject, body } = await regenerateDraft(selectedTarget.id, regenerateComments)
-        const updatedTargets = targets.map((t) =>
-          t.id === selectedTarget.id ? { ...t, draft: { ...t.draft!, subject, body } } : t,
-        )
-        setTargets(updatedTargets)
+        const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
+
+        const { subject, body } = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
+
+        setDraftCache((prev) => ({
+          ...prev,
+          [selectedTarget.id]: { subject, body },
+        }))
+
         setEditedSubject(subject)
         setEditedBody(body)
         setRegenerateComments("")
         setShowRegenerateInput(false)
-        console.log("[v0] Draft regenerated with comments successfully:", selectedTarget.id)
+        console.log("[v0] Draft regenerated with feedback:", selectedTarget.id)
       } catch (error) {
-        console.error("[v0] Failed to regenerate draft with comments:", error)
+        console.error("[v0] Failed to regenerate draft with feedback:", error)
       } finally {
         setIsRegenerating(false)
       }
@@ -447,7 +455,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
-  const currentDraft = selectedTarget ? generatedDrafts.get(selectedTarget.id) : null
+  const currentDraft = selectedTarget ? draftCache[selectedTarget.id] || selectedTarget.draft : null
 
   // This prevents the white-screen crash while the system loads the batch
   if (!selectedTarget && activeTargets.length > 0) {

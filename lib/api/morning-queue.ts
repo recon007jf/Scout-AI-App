@@ -98,3 +98,37 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
     body: data.body,
   }
 }
+
+export async function regenerateDraftWithFeedback(
+  target: MorningQueueTarget,
+  currentDraft: { subject: string; body: string },
+  userFeedback: string,
+): Promise<{
+  subject: string
+  body: string
+}> {
+  const response = await fetch("/api/generate-draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      targetId: target.id,
+      name: target.name,
+      company: target.company,
+      title: target.title,
+      region: target.region,
+      tier: target.tier,
+      currentDraft,
+      userFeedback,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error("Failed to regenerate draft")
+  }
+
+  const data = await response.json()
+  return {
+    subject: data.subject,
+    body: data.body,
+  }
+}
