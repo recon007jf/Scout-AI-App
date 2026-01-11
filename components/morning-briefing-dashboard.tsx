@@ -116,6 +116,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
   const [draftCache, setDraftCache] = useState<Record<string, { subject: string; body: string }>>({})
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
+  const [showCommentDialog, setShowCommentDialog] = useState(false) // Added for the comment dialog state
 
   useEffect(() => {
     loadData()
@@ -393,7 +394,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
-  const handleRegenerateEmail = async () => {
+  // Renamed to handleRegenerate to match usage in the update
+  const handleRegenerate = async () => {
     if (selectedTarget) {
       setIsRegenerating(true)
       try {
@@ -456,6 +458,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           setEditedBody(body)
           setRegenerateComments("")
           setShowRegenerateInput(false)
+          setShowCommentDialog(false) // Close the dialog after successful regeneration
           console.log("[v0] Draft regenerated with feedback:", selectedTarget.id)
           toast({
             title: "Draft Updated",
@@ -863,41 +866,30 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       </div>
                     )}
 
-                    {!isEditingEmail && (
-                      <div className="flex gap-2 pt-4 border-t border-border">
-                        {console.log(
-                          "[v0] Rendering regenerate buttons. isEditingEmail:",
-                          isEditingEmail,
-                          "currentDraft:",
-                          currentDraft,
-                        )}
+                    {!isEditingEmail && selectedTarget && (
+                      <div className="flex gap-2 mt-4">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={handleRegenerateEmail}
-                          disabled={isRegenerating}
-                          className="bg-transparent"
+                          onClick={() => {
+                            console.log("[v0] Regenerate with AI clicked")
+                            handleRegenerate()
+                          }}
+                          disabled={isGeneratingDraft}
                         >
-                          {isRegenerating ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Regenerating...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-4 h-4 mr-2" />
-                              Regenerate with AI
-                            </>
-                          )}
+                          <Sparkles className="h-4 w-4 mr-2" />
+                          {isGeneratingDraft ? "Generating..." : "Regenerate with AI"}
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setShowRegenerateInput(!showRegenerateInput)}
-                          disabled={isRegenerating}
-                          className="bg-transparent"
+                          onClick={() => {
+                            console.log("[v0] Regenerate with Comments clicked")
+                            setShowCommentDialog(true)
+                          }}
+                          disabled={isGeneratingDraft}
                         >
-                          <MessageSquare className="w-4 h-4 mr-2" />
+                          <MessageSquare className="h-4 w-4 mr-2" />
                           Regenerate with Comments
                         </Button>
                       </div>
