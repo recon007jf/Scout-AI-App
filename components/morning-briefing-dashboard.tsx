@@ -133,12 +133,11 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     const targetId = selectedTarget?.id
     if (!targetId) return
 
-    // Check if draft exists in draftCache or database
+    // Check if draft exists in draftCache
     if (draftCache[targetId]) {
       return
     }
 
-    // Check if draft exists on target from database
     if (selectedTarget.email_subject && selectedTarget.email_body) {
       setDraftCache((prev) => ({
         ...prev,
@@ -328,6 +327,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       setEditedBody(draft.body || "")
       setIsEditingEmail(true)
       setShowRegenerateInput(false)
+    } else {
+      toast({
+        title: "No Draft Available",
+        description: "Please wait for the draft to be generated first.",
+        variant: "destructive",
+      })
     }
   }
 

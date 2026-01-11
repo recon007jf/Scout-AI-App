@@ -8,9 +8,11 @@ export interface MorningQueueTarget {
   status: string
   created_at: string
   work_email?: string
-  linkedin_url?: string
+  linkedinUrl?: string
   region?: string
   tier?: string
+  email_subject?: string
+  email_body?: string
 }
 
 export const normalizeTarget = (raw: any): MorningQueueTarget => {
@@ -24,9 +26,11 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
     status: raw?.status || "PENDING",
     created_at: raw?.created_at || new Date().toISOString(),
     work_email: raw?.work_email || undefined,
-    linkedin_url: raw?.linkedin_url || undefined,
+    linkedinUrl: raw?.linkedin_url || undefined,
     region: raw?.region || undefined,
     tier: raw?.tier || undefined,
+    email_subject: raw?.llm_email_subject || undefined,
+    email_body: raw?.llm_email_body || undefined,
   }
 }
 
