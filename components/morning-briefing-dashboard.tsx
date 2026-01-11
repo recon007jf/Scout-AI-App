@@ -58,7 +58,7 @@ type Target = {
     body: string
     tone: string
     wordCount: number
-  }
+  } | null
   aiRationale: string
   businessPersona: {
     type: string
@@ -278,7 +278,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleStartEdit = () => {
-    if (selectedTarget) {
+    if (selectedTarget?.draft) {
       setEditedSubject(selectedTarget.draft.subject)
       setEditedBody(selectedTarget.draft.body)
       setIsEditingEmail(true)
@@ -287,7 +287,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleSaveEdit = async () => {
-    if (selectedTarget) {
+    if (selectedTarget?.draft) {
       const updatedTargets = targets.map((t) =>
         t.id === selectedTarget.id ? { ...t, draft: { ...t.draft, subject: editedSubject, body: editedBody } } : t,
       )
@@ -309,7 +309,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleRegenerateEmail = async () => {
-    if (selectedTarget) {
+    if (selectedTarget?.draft) {
       setIsRegenerating(true)
       try {
         const { subject, body } = await regenerateDraft(selectedTarget.id)
@@ -329,7 +329,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleRegenerateWithComments = async () => {
-    if (selectedTarget && regenerateComments.trim()) {
+    if (selectedTarget?.draft && regenerateComments.trim()) {
       setIsRegenerating(true)
       try {
         const { subject, body } = await regenerateDraft(selectedTarget.id, regenerateComments)
@@ -663,21 +663,25 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Subject Line
                             </label>
-                            <p className="text-foreground font-medium mt-1.5">{selectedTarget.draft.subject}</p>
+                            <p className="text-foreground font-medium mt-1.5">
+                              {selectedTarget?.draft?.subject || "No subject available"}
+                            </p>
                           </div>
                           <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                               Email Body
                             </label>
                             <div className="mt-1.5 text-foreground whitespace-pre-wrap leading-relaxed">
-                              {selectedTarget.draft.body}
+                              {selectedTarget?.draft?.body || "No email body available"}
                             </div>
                           </div>
-                          <div className="flex gap-2 pt-2 text-xs text-muted-foreground">
-                            <span>Tone: {selectedTarget.draft.tone}</span>
-                            <span>•</span>
-                            <span>{selectedTarget.draft.wordCount} words</span>
-                          </div>
+                          {selectedTarget?.draft && (
+                            <div className="flex gap-2 pt-2 text-xs text-muted-foreground">
+                              <span>Tone: {selectedTarget.draft.tone}</span>
+                              <span>•</span>
+                              <span>{selectedTarget.draft.wordCount} words</span>
+                            </div>
+                          )}
                         </div>
                       </>
                     ) : (
