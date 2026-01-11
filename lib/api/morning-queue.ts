@@ -79,7 +79,7 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   console.log("[v0] === STARTING DRAFT GENERATION for target:", target.id)
   console.log("[v0] Target data:", { name: target.name, company: target.company, title: target.title })
 
-  const response = await fetch("/api/scout/generate-draft", {
+  const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -195,7 +195,7 @@ export async function regenerateDraftWithFeedback(
   console.log("[v0] Regenerating draft with feedback for target:", target.id)
   console.log("[v0] Feedback:", feedback)
 
-  const response = await fetch("/api/scout/generate-draft", {
+  const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
