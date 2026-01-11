@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   console.log("=== DRAFT GENERATION PROXY DEBUG ===")
   console.log("Environment:", process.env.VERCEL_ENV || "local")
   console.log("Resolved Backend URL:", backendUrl)
-  console.log("Target Endpoint:", `${backendUrl}/api/drafts/action`)
+  console.log("Target Endpoint:", `${backendUrl}/api/scout/generate-draft`)
   console.log("Secret Header Present:", internalSecret ? "yes" : "no")
   console.log("====================================")
 
@@ -37,14 +37,13 @@ export async function POST(req: Request) {
       dossier_id: dossier_id,
       action: "generate",
       user_email: body.user_email || "admin@pacificaisystems.com",
-      // Include optional fields if present
       draft_content: body.draft_content || body.currentDraft?.body || body.feedback,
       draft_subject: body.draft_subject || body.currentDraft?.subject,
     }
 
     console.log("[v0] Validated payload:", JSON.stringify(payload, null, 2))
 
-    const upstream = await fetch(`${backendUrl}/api/drafts/action`, {
+    const upstream = await fetch(`${backendUrl}/api/scout/generate-draft`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -64,7 +63,21 @@ export async function POST(req: Request) {
       data = { error: text || "Upstream returned non-JSON response." }
     }
 
-    if (!upstream.ok) console.error(`[Proxy] Upstream error ${status}:`, data)
+    if (!upstream.ok) {
+      console.error(`[Proxy] Upstream error ${status}:`, data)
+      return NextResponse.json(data, { status })
+    }
+
+    if (status === 200 || status === 202) {
+      const hasSubject = data && (data.subject || data.email_subject || data.llm_email_subject)
+      const hasBody = data && (data.body || data.email_body || data.llm_email_body)
+
+      if (!hasSubject || !hasBody) {
+        console.error("[Proxy] Contract violation: Backend returned 200 but missing subject or body keys")
+        console.error("[Proxy] Response data:", JSON.stringify(data, null, 2))
+        return NextResponse.json({ error: "Backend returned incomplete draft data" }, { status: 502 })
+      }
+    }
 
     return NextResponse.json(data, { status })
   } catch (err) {
