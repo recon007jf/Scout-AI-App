@@ -26,7 +26,6 @@ export function MorningBriefingView() {
       try {
         console.log("[Morning Briefing] Fetching Morning Queue...")
         const queueTargets = await getMorningQueue()
-        console.log("[Morning Briefing] Received", queueTargets.length, "rows")
         setTargets(queueTargets)
 
         if (queueTargets.length > 0) {

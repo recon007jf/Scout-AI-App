@@ -163,7 +163,6 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const loadData = async () => {
     setIsLoading(true)
     try {
-      console.log("[Morning Briefing] Fetching Morning Queue...")
       const data = await getMorningQueue()
 
       setTargets(data)
@@ -171,8 +170,6 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       if (data.length > 0) {
         setSelectedTarget(data[0])
       }
-
-      console.log("[Morning Briefing] Received", data.length, "rows")
     } catch (error) {
       console.error("[Morning Briefing] Fetch Error:", error)
       toast.error(`Failed to load briefing: ${error}`)
@@ -420,6 +417,15 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     if (onNavigateToSettings) {
       onNavigateToSettings("integrations")
     }
+  }
+
+  // This prevents the white-screen crash while the system loads the batch
+  if (!selectedTarget && activeTargets.length > 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">Loading System Selection...</p>
+      </div>
+    )
   }
 
   return (

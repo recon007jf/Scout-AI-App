@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@/lib/supabase/client"
+cks oimport { createBrowserClient } from "@/lib/supabase/client"
 
 export interface MorningQueueTarget {
   id: string
@@ -20,17 +20,13 @@ export interface MorningQueueTarget {
  * Behaves like a high-volume queue, not a static list
  */
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
-  console.log("[Morning Queue] Fetching next batch from Supabase...")
-
   const supabase = createBrowserClient()
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    const error = new Error("No authenticated user")
-    console.error("[Morning Queue]", error)
-    throw error
+    throw new Error("No authenticated user")
   }
 
   const { data, error } = await supabase
@@ -41,11 +37,8 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     .limit(10)
 
   if (error) {
-    console.error("[Morning Queue] Supabase Error:", error)
     throw error
   }
-
-  console.log("[Morning Queue] Received", data?.length || 0, "rows")
 
   if (!data || data.length === 0) {
     return []
@@ -86,11 +79,8 @@ export async function approveTarget(id: string, finalSubject: string, finalBody:
     .eq("id", id)
 
   if (error) {
-    console.error("[Morning Queue] Approve Error:", error)
     throw error
   }
-
-  console.log("[Morning Queue] Target approved:", id)
 }
 
 /**
@@ -108,9 +98,6 @@ export async function skipTarget(id: string) {
     .eq("id", id)
 
   if (error) {
-    console.error("[Morning Queue] Skip Error:", error)
     throw error
   }
-
-  console.log("[Morning Queue] Target skipped:", id)
 }
