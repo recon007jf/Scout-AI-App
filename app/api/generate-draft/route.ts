@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server"
+import { type NextRequest, NextResponse } from "next/server"
+import { createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
 function getBackendUrl() {
   const raw = process.env.PYTHON_BACKEND_URL || process.env.CLOUD_RUN_BACKEND_URL || "http://" + "127.0.0.1:8000"
@@ -6,16 +8,18 @@ function getBackendUrl() {
   return url.endsWith("/") ? url.slice(0, -1) : url
 }
 
-export async function POST(req: Request) {
-  const backendUrl = getBackendUrl()
-  const internalSecret = process.env.SCOUT_INTERNAL_SECRET
+export async function POST(req: NextRequest) {
+  const timestamp = new Date().toISOString()
+  console.log(`[Proxy] Request received at ${timestamp}`)
 
-  console.log("=== DRAFT GENERATION PROXY DEBUG (v2026-01-11T11:10) ===")
-  console.log("Environment:", process.env.VERCEL_ENV || "local")
-  console.log("Resolved Backend URL:", backendUrl)
-  console.log("Target Endpoint:", `${backendUrl}/api/scout/generate-draft`)
-  console.log("Secret Header Present:", internalSecret ? "yes" : "no")
-  console.log("====================================")
+  const backendUrl =
+    process.env.CLOUD_RUN_BACKEND_URL ||
+    process.env.PYTHON_BACKEND_URL ||
+    "https://" + "scout-backend-prod-283427197752.us-central1.run.app"
+
+  console.log("[Proxy] Resolved backend URL:", backendUrl)
+
+  const internalSecret = process.env.SCOUT_INTERNAL_SECRET
 
   if (!internalSecret || internalSecret.trim().length < 16) {
     console.error("[Proxy] Missing/invalid SCOUT_INTERNAL_SECRET env var.")
@@ -24,6 +28,27 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
+
+    const cookieStore = await cookies()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll()
+          },
+          setAll() {},
+        },
+      },
+    )
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const userEmail = user?.email || "admin@pacificaisystems.com"
+    console.log("[Proxy] Authenticated user email:", userEmail)
 
     const rawId = body.id || body.targetId || body.dossier_id
     const dossier_id = rawId ? String(rawId) : null
@@ -34,11 +59,10 @@ export async function POST(req: Request) {
     }
 
     const payload = {
-      dossier_id: dossier_id,
-      action: "generate",
-      user_email: body.user_email || "admin@pacificaisystems.com",
-      draft_content: body.draft_content || body.currentDraft?.body || body.feedback,
-      draft_subject: body.draft_subject || body.currentDraft?.subject,
+      id: dossier_id,
+      force_regenerate: Boolean(body.force_regenerate),
+      comments: String(body.comments || ""),
+      user_email: userEmail,
     }
 
     console.log("[v0] Validated payload:", JSON.stringify(payload, null, 2))
@@ -80,8 +104,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json(data, { status })
-  } catch (err) {
-    console.error("[Proxy] Fatal error contacting draft service:", err)
-    return NextResponse.json({ error: "Draft service unreachable." }, { status: 503 })
+  } catch (error: any) {
+    console.error("[Proxy] Unexpected error:", error)
+    return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 })
   }
 }

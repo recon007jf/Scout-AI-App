@@ -76,19 +76,16 @@ export async function skipTarget(targetId: string): Promise<void> {
 }
 
 export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
-  console.log("[v0] === STARTING DRAFT GENERATION for target:", target.id)
-  console.log("[v0] Target data:", { name: target.name, company: target.company, title: target.title })
+  console.log("[v0] ==> STARTING DRAFT GENERATION for target:", target.id)
+  console.log("[v0] Target data:", JSON.stringify(target, null, 2))
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      targetId: target.id,
-      name: target.name,
-      company: target.company,
-      title: target.title,
-      region: target.region,
-      tier: target.tier,
+      id: target.id,
+      force_regenerate: false,
+      comments: "",
     }),
   })
 
@@ -199,14 +196,9 @@ export async function regenerateDraftWithFeedback(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      targetId: target.id,
-      name: target.name,
-      company: target.company,
-      title: target.title,
-      region: target.region,
-      tier: target.tier,
-      currentDraft,
-      feedback,
+      id: target.id,
+      force_regenerate: true,
+      comments: feedback || "",
     }),
   })
 

@@ -27,6 +27,8 @@ import {
   Play,
   Undo2,
   Pencil,
+  Check,
+  MessageSquare,
 } from "lucide-react"
 import {
   approveTarget,
@@ -848,7 +850,20 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       )}
                     </div>
 
-                    {!isEditingEmail && currentDraft && (
+                    {isEditingEmail && (
+                      <div className="flex gap-2 pt-4 border-t border-border mb-4">
+                        <Button size="sm" onClick={handleSaveEdit} className="bg-primary">
+                          <Check className="w-4 h-4 mr-2" />
+                          Save Changes
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={handleCancelEdit} className="bg-transparent">
+                          <X className="w-4 h-4 mr-2" />
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
+
+                    {!isEditingEmail && (
                       <div className="flex gap-2 pt-4 border-t border-border">
                         <Button
                           variant="outline"
@@ -876,11 +891,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           disabled={isRegenerating}
                           className="bg-transparent"
                         >
-                          <Sparkles className="w-4 h-4 mr-2" />
+                          <MessageSquare className="w-4 h-4 mr-2" />
                           Regenerate with Comments
                         </Button>
                       </div>
                     )}
+
                     {showRegenerateInput && (
                       <div className="space-y-2 pt-4 border-t border-border mt-4">
                         <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide block">
