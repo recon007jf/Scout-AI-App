@@ -130,32 +130,24 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }, [])
 
   useEffect(() => {
-    const targetId = selectedTarget?.id
-    if (!targetId) return
+    if (!selectedTarget) return
 
-    // Check if draft exists in draftCache
+    const targetId = selectedTarget.id
+
+    // Check if draft already exists in cache
     if (draftCache[targetId]) {
+      console.log("[v0] Using cached draft for:", targetId)
       return
     }
 
-    if (selectedTarget.email_subject && selectedTarget.email_body) {
-      setDraftCache((prev) => ({
-        ...prev,
-        [targetId]: {
-          subject: selectedTarget.email_subject!,
-          body: selectedTarget.email_body!,
-        },
-      }))
-      return
-    }
-
-    // Only generate if no draft exists anywhere
+    // Generate draft (function handles checking database first)
     const generateDraft = async () => {
       setIsGeneratingDraft(true)
       try {
+        console.log("[v0] Generating draft for target:", targetId, selectedTarget)
         const draft = await generateDraftForTarget(selectedTarget)
         setDraftCache((prev) => ({ ...prev, [targetId]: draft }))
-        console.log("[v0] Draft generated and saved for:", targetId)
+        console.log("[v0] Draft generated and saved for:", targetId, draft)
       } catch (error) {
         console.error("[v0] Failed to generate draft:", error)
         toast({
@@ -169,7 +161,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
 
     generateDraft()
-  }, [selectedTarget, draftCache])
+  }, [selectedTarget, draftCache, toast])
 
   const checkOutlookConnection = async () => {
     try {
