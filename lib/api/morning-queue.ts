@@ -3,31 +3,16 @@ import { createBrowserClient } from "@/lib/supabase/client"
 export interface MorningQueueTarget {
   id: string
   name: string
-  title: string
   company: string
-  confidence: "high" | "medium" | "low"
-  avatarUrl?: string
-  linkedinUrl?: string
-  reason: string
-  draftSubject: string
-  draftBody: string
+  title: string
+  subject: string
+  message: string
   status: string
+  created_at: string
 }
 
-/**
- * PRODUCTION FIFO PRIORITY QUEUE
- * Fetch the NEXT 10 items ready for review from a massive database
- * Behaves like a high-volume queue, not a static list
- */
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   const supabase = createBrowserClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("No authenticated user")
-  }
 
   const { data, error } = await supabase
     .from("target_brokers")
@@ -37,67 +22,41 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     .limit(10)
 
   if (error) {
-    throw error
+    throw new Error(`Failed to fetch morning queue: ${error.message}`)
   }
 
-  if (!data || data.length === 0) {
+  if (!data) {
     return []
   }
 
-  return data.map((row) => ({
+  return data.map((row: any) => ({
     id: row.id,
     name: row.full_name || "Unknown",
-    title: row.role || "Broker",
-    company: row.firm || "Unknown Firm",
-    confidence: row.verification_status === "verified" ? "high" : "medium",
-    linkedinUrl: row.linkedin_url || undefined,
-    reason: row.risk_profile
-      ? `Risk Profile: ${row.risk_profile}${row.base_archetype ? ` | Archetype: ${row.base_archetype}` : ""}`
-      : "Analysis pending",
-    draftSubject: row.generated_subject_line || "Analysis Complete • Pending Strategy...",
-    draftBody: row.generated_email_body || "Draft content is being generated...",
+    company: row.firm || "Unknown",
+    title: row.role || "Unknown",
+    subject: row.generated_subject_line || "No subject",
+    message: row.generated_email_body || "No message",
     status: row.status,
+    created_at: row.created_at,
   }))
 }
 
-/**
- * Approve target and queue for sending
- * UI does not send - it sets status to QUEUED_FOR_SEND
- * Backend watches for this status change and sends
- */
-export async function approveTarget(id: string, finalSubject: string, finalBody: string) {
+export async function approveTarget(targetId: string): Promise<void> {
   const supabase = createBrowserClient()
 
-  const { error } = await supabase
-    .from("target_brokers")
-    .update({
-      status: "QUEUED_FOR_SEND",
-      draft_subject: finalSubject,
-      draft_body: finalBody,
-      approved_at: new Date().toISOString(),
-    })
-    .eq("id", id)
+  const { error } = await supabase.from("target_brokers").update({ status: "QUEUED_FOR_SEND" }).eq("id", targetId)
 
   if (error) {
-    throw error
+    throw new Error(`Failed to approve target: ${error.message}`)
   }
 }
 
-/**
- * Skip/archive target
- */
-export async function skipTarget(id: string) {
+export async function skipTarget(targetId: string): Promise<void> {
   const supabase = createBrowserClient()
 
-  const { error } = await supabase
-    .from("target_brokers")
-    .update({
-      status: "ARCHIVED",
-      archived_at: new Date().toISOString(),
-    })
-    .eq("id", id)
+  const { error } = await supabase.from("target_brokers").update({ status: "SKIPPED" }).eq("id", targetId)
 
   if (error) {
-    throw error
+    throw new Error(`Failed to skip target: ${error.message}`)
   }
 }
