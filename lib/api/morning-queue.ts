@@ -75,20 +75,11 @@ export async function skipTarget(targetId: string): Promise<void> {
   }
 }
 
-export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{
-  subject: string
-  body: string
-}> {
-  console.log("[v0] Request payload:", {
-    targetId: target.id,
-    name: target.name,
-    company: target.company,
-    title: target.title,
-    region: target.region,
-    tier: target.tier,
-  })
+export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
+  console.log("[v0] === STARTING DRAFT GENERATION for target:", target.id)
+  console.log("[v0] Target data:", { name: target.name, company: target.company, title: target.title })
 
-  const response = await fetch("/api/generate-draft", {
+  const response = await fetch("/api/scout/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -199,12 +190,12 @@ export async function saveDraftToDatabase(targetId: string, subject: string, bod
 export async function regenerateDraftWithFeedback(
   target: MorningQueueTarget,
   currentDraft: { subject: string; body: string },
-  userFeedback: string,
-): Promise<{
-  subject: string
-  body: string
-}> {
-  const response = await fetch("/api/generate-draft", {
+  feedback: string,
+): Promise<{ subject: string; body: string }> {
+  console.log("[v0] Regenerating draft with feedback for target:", target.id)
+  console.log("[v0] Feedback:", feedback)
+
+  const response = await fetch("/api/scout/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -215,7 +206,7 @@ export async function regenerateDraftWithFeedback(
       region: target.region,
       tier: target.tier,
       currentDraft,
-      userFeedback,
+      feedback,
     }),
   })
 
