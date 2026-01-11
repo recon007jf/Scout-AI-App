@@ -830,8 +830,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span className="text-sm text-muted-foreground">Generating subject...</span>
                         </div>
-                      ) : currentDraft?.subject ? (
-                        <h3 className="text-lg font-medium">{currentDraft.subject}</h3>
+                      ) : selectedTarget && draftCache[selectedTarget.id]?.subject ? (
+                        <h3 className="text-lg font-medium">{draftCache[selectedTarget.id].subject}</h3>
                       ) : (
                         <p className="text-sm text-muted-foreground italic">
                           No draft yet - click "Regenerate with AI" to create one
@@ -856,8 +856,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                             <p className="text-xs text-muted-foreground">This may take a few moments</p>
                           </div>
                         </div>
-                      ) : currentDraft?.body ? (
-                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">{currentDraft.body}</div>
+                      ) : selectedTarget && draftCache[selectedTarget.id]?.body ? (
+                        <div className="prose prose-sm max-w-none whitespace-pre-wrap">
+                          {draftCache[selectedTarget.id].body}
+                        </div>
                       ) : (
                         <div className="p-8 bg-muted/50 rounded-md text-center">
                           <p className="text-sm text-muted-foreground mb-2">No draft available</p>
