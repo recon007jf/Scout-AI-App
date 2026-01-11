@@ -110,9 +110,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [showPauseDurationModal, setShowPauseDurationModal] = useState(false)
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
-  const [generatedDrafts, setGeneratedDrafts] = useState<Map<string, { subject: string; body: string }>>(new Map())
   const [draftCache, setDraftCache] = useState<Record<string, { subject: string; body: string }>>({})
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -130,7 +129,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
   useEffect(() => {
     const targetId = selectedTarget?.id
-    if (!targetId || generatedDrafts.has(targetId)) {
+    if (!targetId || draftCache[targetId]) {
       return
     }
 
@@ -138,7 +137,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       setIsGeneratingDraft(true)
       try {
         const draft = await generateDraftForTarget(selectedTarget)
-        setGeneratedDrafts((prev) => new Map(prev).set(targetId, draft))
+        setDraftCache((prev) => ({ ...prev, [targetId]: draft }))
+        console.log("[v0] Draft generated for:", targetId)
       } catch (error) {
         console.error("[v0] Failed to generate draft:", error)
         toast({
@@ -152,7 +152,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
 
     generateDraft()
-  }, [selectedTarget])
+  }, [selectedTarget, draftCache])
 
   const checkOutlookConnection = async () => {
     try {
@@ -304,16 +304,19 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleStartEdit = () => {
-    if (selectedTarget?.draft) {
-      setEditedSubject(selectedTarget.draft.subject || "")
-      setEditedBody(selectedTarget.draft.body || "")
+    if (selectedTarget && draftCache[selectedTarget.id]) {
+      const draft = draftCache[selectedTarget.id]
+      setEditedSubject(draft.subject || "")
+      setEditedBody(draft.body || "")
       setIsEditingEmail(true)
       setShowRegenerateInput(false)
     }
   }
 
   const handleSaveEdit = async () => {
-    if (selectedTarget && selectedTarget.draft) {
+    if (selectedTarget && draftCache[selectedTarget.id]) {
+      const oldDraft = draftCache[selectedTarget.id]
+
       // Update the draft cache immediately for UI
       setDraftCache((prev) => ({
         ...prev,
@@ -329,9 +332,14 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         // Revert on error
         setDraftCache((prev) => ({
           ...prev,
-          [selectedTarget.id]: selectedTarget.draft,
+          [selectedTarget.id]: oldDraft,
         }))
         setIsEditingEmail(true)
+        toast({
+          title: "Save Failed",
+          description: "Could not save edited draft",
+          variant: "destructive",
+        })
       }
     }
   }
