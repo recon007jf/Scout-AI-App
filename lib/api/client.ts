@@ -82,6 +82,7 @@ export async function getMorningCoffeeQueue(): Promise<Target[]> {
 
 /**
  * Fetches today's briefing batch (Daily 50)
+ * DEPRECATED: This function now uses direct Supabase queries instead of API endpoint
  * Endpoint: GET /api/scout/briefing (proxied via Next.js)
  *
  * ENVELOPE PATTERN: Always returns { targets: Target[], isMock: boolean }
@@ -97,23 +98,28 @@ const ERR_AUTH_REQUIRED = "AUTH_REQUIRED"
 
 export async function getBriefing(): Promise<BriefingResult> {
   try {
-    const res = await fetch("/api/scout/briefing")
+    const { createBrowserClient } = await import("@/lib/supabase/client")
+    const supabase = createBrowserClient()
 
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(ERR_AUTH_REQUIRED)
+    const { data, error } = await supabase
+      .from("target_brokers")
+      .select("*")
+      .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS"])
+      .order("created_at", { ascending: true })
+      .limit(10)
+
+    if (error) {
+      console.error("[v0] Supabase Error:", error)
+      throw error
     }
 
-    if (!res.ok) {
-      throw new Error(`System Error: ${res.status}`)
+    console.log("[v0] Briefing Payload Count:", data?.length || 0)
+
+    if (!data || data.length === 0) {
+      return { targets: [], isMock: false }
     }
 
-    const data = await res.json()
-    const rawDossiers = data.dossiers || []
-
-    console.log("[v0] Briefing Payload Count:", rawDossiers.length)
-    console.log("[v0] Briefing Payload:", data)
-
-    const targets = rawDossiers.map((d: any) => {
+    const targets = data.map((d: any) => {
       const status = d.status || "candidate"
       const draftBody = d.draft_body || d.draft?.body || ""
       const draftSubject = d.draft_subject || d.draft?.subject || "Draft generation pending..."

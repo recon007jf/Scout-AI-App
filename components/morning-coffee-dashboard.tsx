@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useProfileImage } from "@/lib/hooks/use-profile-image"
+import { createBrowserClient } from "@/lib/supabase/client" // Import Supabase client
 import {
   Coffee,
   CheckCircle2,
@@ -85,10 +86,28 @@ export function MorningCoffeeDashboard() {
   const loadTargets = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/scout/briefing")
-      const data = await response.json()
+      const supabase = createBrowserClient()
 
-      const mappedTargets = data.targets.map((target: any) => ({
+      const { data, error } = await supabase
+        .from("target_brokers")
+        .select("*")
+        .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS"])
+        .order("created_at", { ascending: true })
+        .limit(10)
+
+      if (error) {
+        console.error("[v0] Supabase Error:", error)
+        throw error
+      }
+
+      console.log("[v0] Received", data?.length || 0, "targets from Supabase")
+
+      if (!data || data.length === 0) {
+        setTargets([])
+        return
+      }
+
+      const mappedTargets = data.map((target: any) => ({
         id: target.id,
         contactName: target.full_name,
         title: target.role,
@@ -512,7 +531,7 @@ export function MorningCoffeeDashboard() {
                             className="flex-1 bg-transparent"
                             onClick={() => setActiveTab("draft")}
                           >
-                            <Edit3 className="w-4 h-4 mr-2" />
+                            <Edit3 className="w-4 h-4 mr-1.5" />
                             Review & Edit Draft
                           </Button>
                           <Button
