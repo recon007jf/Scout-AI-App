@@ -79,6 +79,15 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   console.log("[v0] ==> STARTING DRAFT GENERATION for target:", target.id)
   console.log("[v0] Target data:", JSON.stringify(target, null, 2))
 
+  const existingDraft = await checkExistingDraft(target.id)
+  if (existingDraft.llm_email_subject && existingDraft.llm_email_body) {
+    console.log("[v0] ✅ Using existing draft from database")
+    return {
+      subject: existingDraft.llm_email_subject,
+      body: existingDraft.llm_email_body,
+    }
+  }
+
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -223,7 +232,7 @@ export async function regenerateDraftWithFeedback(
 }
 
 export async function regenerateDraft(targetId: string): Promise<{ subject: string; body: string }> {
-  console.log("[v0] 🔄 Mock regenerate: Force regenerating draft for target:", targetId)
+  console.log("[v0] 🔄 FORCE regenerating draft for target:", targetId)
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
@@ -244,11 +253,11 @@ export async function regenerateDraft(targetId: string): Promise<{ subject: stri
   }
 
   const data = await response.json()
-  console.log("[v0] API returned draft:", data)
+  console.log("[v0] ✅ API returned regenerated draft:", data)
 
-  console.log("[v0] 💾 Saving draft to database...")
+  console.log("[v0] 💾 Overwriting draft in database...")
   await saveDraftToDatabase(targetId, data.subject, data.body)
-  console.log("[v0] ✅ Draft saved to database")
+  console.log("[v0] ✅ Draft overwritten successfully")
 
   return {
     subject: data.subject,

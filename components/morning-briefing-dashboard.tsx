@@ -184,7 +184,24 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
 
     generateDraft()
-  }, [selectedTarget, draftCache])
+  }, [selectedTarget, draftCache]) // Changed from selectedTarget?.id to selectedTarget to match hook's usage
+
+  useEffect(() => {
+    if (!selectedTarget?.id) return
+
+    const draft = draftCache[selectedTarget.id]
+    if (!draft) return
+
+    const hasPlaceholders =
+      draft.body.includes("[LLM PLACEHOLDER]") ||
+      draft.body.includes("[Your Name]") ||
+      draft.body.includes("[Your Title]")
+
+    if (hasPlaceholders && !isRegenerating) {
+      console.log("[v0] 🔧 Auto-healing placeholder draft for:", selectedTarget.id)
+      handleRegenerate()
+    }
+  }, [selectedTarget?.id, draftCache, isRegenerating])
 
   const checkOutlookConnection = async () => {
     try {
@@ -397,7 +414,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const handleRegenerate = async () => {
     if (selectedTarget) {
       setIsRegenerating(true)
-      console.log("[v0] 🔄 Starting regeneration for target:", selectedTarget.id)
+      console.log("[v0] 🔄 Starting FORCE regeneration for target:", selectedTarget.id)
 
       try {
         const result = await regenerateDraft(selectedTarget.id)
@@ -411,23 +428,24 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           body.includes("[Your Contact Information]") ||
           body.includes("[LLM PLACEHOLDER]")
 
+        setDraftCache((prev) => ({
+          ...prev,
+          [selectedTarget.id]: { subject, body },
+        }))
+        setEditedSubject(subject)
+        setEditedBody(body)
+
         if (subject && body && !hasPlaceholders) {
-          setDraftCache((prev) => ({
-            ...prev,
-            [selectedTarget.id]: { subject, body },
-          }))
-          setEditedSubject(subject)
-          setEditedBody(body)
           console.log("[v0] ✅ Draft regenerated successfully:", selectedTarget.id)
           toast({
             title: "Draft Regenerated",
             description: "A new draft has been generated.",
           })
         } else {
-          console.error("[v0] ❌ Regeneration returned placeholder or empty content")
+          console.error("[v0] ⚠️ Regeneration returned placeholder content")
           toast({
-            title: "Regeneration Incomplete",
-            description: "The draft contains placeholders. Backend prompts may need adjustment.",
+            title: "Draft Generated with Placeholders",
+            description: "Backend returned placeholder content. AG needs to fix backend prompts.",
             variant: "destructive",
           })
         }
@@ -447,7 +465,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const handleRegenerateWithComments = async () => {
     if (selectedTarget && regenerateComments.trim()) {
       setIsRegenerating(true)
-      console.log("[v0] 🔄 Starting regeneration with comments for target:", selectedTarget.id)
+      console.log("[v0] 🔄 Starting FORCE regeneration with comments for target:", selectedTarget.id)
 
       try {
         const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
@@ -463,27 +481,28 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           body.includes("[Your Contact Information]") ||
           body.includes("[LLM PLACEHOLDER]")
 
-        if (subject && body && !hasPlaceholders) {
-          setDraftCache((prev) => ({
-            ...prev,
-            [selectedTarget.id]: { subject, body },
-          }))
+        setDraftCache((prev) => ({
+          ...prev,
+          [selectedTarget.id]: { subject, body },
+        }))
 
-          setEditedSubject(subject)
-          setEditedBody(body)
-          setRegenerateComments("")
-          setShowRegenerateInput(false)
-          setShowCommentDialog(false)
+        setEditedSubject(subject)
+        setEditedBody(body)
+        setRegenerateComments("")
+        setShowRegenerateInput(false)
+        setShowCommentDialog(false)
+
+        if (subject && body && !hasPlaceholders) {
           console.log("[v0] ✅ Draft regenerated with feedback:", selectedTarget.id)
           toast({
             title: "Draft Updated",
             description: "Your feedback has been incorporated.",
           })
         } else {
-          console.error("[v0] ❌ Regeneration with feedback returned placeholder or empty content")
+          console.error("[v0] ⚠️ Regeneration with feedback returned placeholder content")
           toast({
-            title: "Regeneration Incomplete",
-            description: "The draft contains placeholders. Backend prompts may need adjustment.",
+            title: "Draft Generated with Placeholders",
+            description: "Backend returned placeholder content. AG needs to fix backend prompts.",
             variant: "destructive",
           })
         }
@@ -885,26 +904,15 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                     {!isEditingEmail && selectedTarget && (
                       <div className="flex gap-2 mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            console.log("[v0] Regenerate with AI clicked")
-                            handleRegenerate()
-                          }}
-                          disabled={isGeneratingDraft}
-                        >
+                        <Button onClick={handleRegenerate} disabled={isRegenerating} variant="outline" size="sm">
                           <Sparkles className="h-4 w-4 mr-2" />
-                          {isGeneratingDraft ? "Generating..." : "Regenerate with AI"}
+                          {isRegenerating ? "Regenerating..." : "Regenerate with AI"}
                         </Button>
                         <Button
+                          onClick={() => setShowCommentDialog(true)}
+                          disabled={isRegenerating}
                           variant="outline"
                           size="sm"
-                          onClick={() => {
-                            console.log("[v0] Regenerate with Comments clicked")
-                            setShowCommentDialog(true)
-                          }}
-                          disabled={isGeneratingDraft}
                         >
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Regenerate with Comments
