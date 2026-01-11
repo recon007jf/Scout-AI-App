@@ -81,82 +81,10 @@ export async function getMorningCoffeeQueue(): Promise<Target[]> {
 // ============================================================================
 
 /**
- * Fetches today's briefing batch (Daily 50)
- * DEPRECATED: This function now uses direct Supabase queries instead of API endpoint
- * Endpoint: GET /api/scout/briefing (proxied via Next.js)
- *
- * ENVELOPE PATTERN: Always returns { targets: Target[], isMock: boolean }
- * This prevents shape mismatches between live and mock data.
+ * DEPRECATED: getBriefing() has been removed.
+ * Use getMorningQueue() from @/lib/api/morning-queue instead.
+ * All morning briefing data now comes directly from Supabase target_brokers table.
  */
-
-type BriefingResult = {
-  targets: Target[]
-  isMock: boolean
-}
-
-const ERR_AUTH_REQUIRED = "AUTH_REQUIRED"
-
-export async function getBriefing(): Promise<BriefingResult> {
-  try {
-    const { createBrowserClient } = await import("@/lib/supabase/client")
-    const supabase = createBrowserClient()
-
-    const { data, error } = await supabase
-      .from("target_brokers")
-      .select("*")
-      .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS"])
-      .order("created_at", { ascending: true })
-      .limit(10)
-
-    if (error) {
-      console.error("[v0] Supabase Error:", error)
-      throw error
-    }
-
-    console.log("[v0] Briefing Payload Count:", data?.length || 0)
-
-    if (!data || data.length === 0) {
-      return { targets: [], isMock: false }
-    }
-
-    const targets = data.map((d: any) => {
-      const status = d.status || "candidate"
-      const draftBody = d.draft_body || d.draft?.body || ""
-      const draftSubject = d.draft_subject || d.draft?.subject || "Draft generation pending..."
-
-      return {
-        id: d.identity_key || d.dossier_id || d.id || `unknown_${Date.now()}`,
-        name: d.contact_name || d.name || "Unknown Contact",
-        company: d.company_name || d.company || "Unknown Company",
-        role: d.title || d.role || "Unknown Role",
-        email: d.contact_email || d.email || "",
-        linkedin: d.linkedin_url || d.linkedin || "",
-        status: status,
-        draft: {
-          subject: draftSubject,
-          body: draftBody,
-        },
-        signals: Array.isArray(d.signals)
-          ? d.signals.map((s: any) => (typeof s === "string" ? s : s?.text || s?.summary || "")).filter(Boolean)
-          : [],
-      }
-    })
-
-    console.log("[v0] Mapped targets successfully:", targets.length, "targets")
-
-    return { targets, isMock: false }
-  } catch (error: any) {
-    if (error.message === ERR_AUTH_REQUIRED) {
-      throw error
-    }
-
-    console.error("[v0] Live data failed, activating fallback:", error)
-
-    const { mockTargets } = await import("./mock/morning-coffee")
-
-    return { targets: mockTargets, isMock: true }
-  }
-}
 
 /**
  * Approves a draft and queues for sending

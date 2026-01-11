@@ -29,7 +29,6 @@ import {
   Pencil,
 } from "lucide-react"
 import {
-  getBriefing,
   approveTarget,
   dismissTarget,
   saveDraft,
@@ -42,6 +41,7 @@ import {
 import { cn } from "@/lib/utils"
 import { PauseDurationModal } from "@/components/pause-duration-modal"
 import { ThresholdWarningModal } from "@/components/threshold-warning-modal"
+import { getMorningQueue } from "@/lib/api/morning-queue"
 
 type Target = {
   id: string
@@ -112,7 +112,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
 
   useEffect(() => {
-    loadBriefing()
+    loadData()
     checkOutlookConnection()
     checkOutreachStatus()
   }, [])
@@ -160,15 +160,11 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
-  const loadBriefing = async () => {
+  const loadData = async () => {
     setIsLoading(true)
     try {
       console.log("[Morning Briefing] Fetching Morning Queue...")
-      const { targets: data, isMock } = await getBriefing()
-
-      if (isMock) {
-        throw new Error("Mock data returned - should be live data only")
-      }
+      const data = await getMorningQueue()
 
       setTargets(data)
 

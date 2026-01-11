@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react"
-import { getOutreachStatus, getBriefing } from "@/lib/api/client"
+import { getOutreachStatus } from "@/lib/api/client"
+import { getMorningQueue } from "@/lib/api/morning-queue"
 
 type TestStatus = "idle" | "running" | "success" | "error"
 
@@ -33,8 +34,8 @@ export function IntegrationTestPanel() {
     setStage2Result(null)
 
     try {
-      const result = await getBriefing()
-      setStage2Result(result)
+      const result = await getMorningQueue()
+      setStage2Result({ targets: result, count: result.length })
       setStage2Status("success")
     } catch (error) {
       setStage2Result({ error: error instanceof Error ? error.message : "Unknown error" })
@@ -89,7 +90,7 @@ export function IntegrationTestPanel() {
           {stage2Status === "running" && <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />}
         </div>
 
-        <p className="text-sm text-gray-400 mb-3">Fetches briefing data from GET /api/briefing</p>
+        <p className="text-sm text-gray-400 mb-3">Fetches briefing data directly from Supabase target_brokers table</p>
 
         <Button onClick={runStage2} disabled={stage2Status === "running"} className="mb-3">
           {stage2Status === "running" ? "Testing..." : "Run Stage 2 Test"}

@@ -5,7 +5,8 @@ import { AppShell } from "@/components/app-shell"
 import { BriefingTargetCard } from "@/components/briefing-target-card"
 import { Button } from "@/components/ui/button"
 import { Loader2, RefreshCw } from "lucide-react"
-import { getBriefing, getOutreachStatus } from "@/lib/api/client"
+import { getMorningQueue } from "@/lib/api/morning-queue"
+import { getOutreachStatus } from "@/lib/api/client"
 import type { BriefingTarget, OutreachStatus } from "@/lib/types/scout"
 
 export default function BriefingPage() {
@@ -19,9 +20,21 @@ export default function BriefingPage() {
     setError(null)
 
     try {
-      const [briefingData, statusData] = await Promise.all([getBriefing(), getOutreachStatus()])
+      const [queueData, statusData] = await Promise.all([getMorningQueue(), getOutreachStatus()])
 
-      setTargets(briefingData.targets || [])
+      const mappedTargets: BriefingTarget[] = queueData.map((t) => ({
+        targetId: t.id,
+        name: t.name,
+        title: t.title || t.role || "",
+        company: t.company,
+        email: t.email,
+        linkedin: t.linkedin || "",
+        status: t.status || "candidate",
+        draft: t.draft,
+        signals: t.signals || [],
+      }))
+
+      setTargets(mappedTargets)
       setOutreachStatus(statusData)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load briefing")
