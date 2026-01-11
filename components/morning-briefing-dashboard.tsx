@@ -865,6 +865,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                     {!isEditingEmail && (
                       <div className="flex gap-2 pt-4 border-t border-border">
+                        {console.log(
+                          "[v0] Rendering regenerate buttons. isEditingEmail:",
+                          isEditingEmail,
+                          "currentDraft:",
+                          currentDraft,
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
