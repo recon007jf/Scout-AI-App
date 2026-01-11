@@ -17,7 +17,7 @@ function CallbackContent() {
     tokenPresent: false,
     typeParam: "",
     message: "Initializing...",
-    verifierFound: false,
+    flowType: "",
   })
   const [errorMessage, setErrorMessage] = useState("")
 
@@ -31,44 +31,40 @@ function CallbackContent() {
       const type = searchParams.get("type")
       const next = searchParams.get("next") || "/"
 
-      const keys = Object.keys(localStorage)
-      const verifierKeys = keys.filter(
-        (k) => k.includes("code-verifier") || k.includes("pkce") || k.includes("supabase"),
-      )
-
       setDebugInfo({
         codePresent: !!code,
         tokenPresent: !!token,
         typeParam: type || "none",
         message: "Callback received",
-        verifierFound: verifierKeys.length > 0,
+        flowType: type === "recovery" ? "Password Recovery (verifyOtp)" : code ? "OAuth/Magic Link (PKCE)" : "Unknown",
       })
 
       console.log("[v0 Callback] Code present:", !!code)
       console.log("[v0 Callback] Token present:", !!token)
       console.log("[v0 Callback] Type:", type)
-      console.log("[v0 Callback] PKCE Verifier found:", verifierKeys.length > 0)
-      console.log("[v0 Callback] Storage keys:", verifierKeys)
       console.log("[v0 Callback] Next destination:", next)
 
-      if (code) {
-        setDebugInfo((prev) => ({ ...prev, message: "Exchanging code for session..." }))
-        console.log("[v0 Callback] Attempting code exchange...")
+      if (token && type === "recovery") {
+        setDebugInfo((prev) => ({ ...prev, message: "Verifying recovery token with verifyOtp..." }))
+        console.log("[v0 Callback] Using verifyOtp for password recovery")
 
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: "recovery",
+        })
 
         if (error) {
-          console.error("[v0 Callback] Exchange failed:", error.message)
+          console.error("[v0 Callback] verifyOtp failed:", error.message)
           setErrorMessage(error.message)
           setStatus("error")
-          setDebugInfo((prev) => ({ ...prev, message: `Exchange failed: ${error.message}` }))
+          setDebugInfo((prev) => ({ ...prev, message: `Recovery verification failed: ${error.message}` }))
           return
         }
 
         if (data.session) {
-          console.log("[v0 Callback] Exchange successful")
+          console.log("[v0 Callback] Recovery session established via verifyOtp")
           setStatus("success")
-          setDebugInfo((prev) => ({ ...prev, message: "Success! Redirecting..." }))
+          setDebugInfo((prev) => ({ ...prev, message: "Recovery successful! Redirecting..." }))
 
           setTimeout(() => {
             router.push(next)
@@ -77,26 +73,28 @@ function CallbackContent() {
         }
       }
 
-      if (token && type === "recovery") {
-        setDebugInfo((prev) => ({ ...prev, message: "Processing recovery token..." }))
-        console.log("[v0 Callback] Recovery token detected, checking session...")
+      if (code) {
+        setDebugInfo((prev) => ({ ...prev, message: "Exchanging code for session (PKCE)..." }))
+        console.log("[v0 Callback] Using exchangeCodeForSession for OAuth/Magic Link")
 
-        const { data } = await supabase.auth.getSession()
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+
+        if (error) {
+          console.error("[v0 Callback] Exchange failed:", error.message)
+          setErrorMessage(error.message)
+          setStatus("error")
+          setDebugInfo((prev) => ({ ...prev, message: `Code exchange failed: ${error.message}` }))
+          return
+        }
 
         if (data.session) {
-          console.log("[v0 Callback] Recovery session established")
+          console.log("[v0 Callback] Code exchange successful")
           setStatus("success")
-          setDebugInfo((prev) => ({ ...prev, message: "Recovery session established! Redirecting..." }))
+          setDebugInfo((prev) => ({ ...prev, message: "Success! Redirecting..." }))
 
           setTimeout(() => {
             router.push(next)
           }, 1000)
-          return
-        } else {
-          console.error("[v0 Callback] No session found after recovery")
-          setErrorMessage("Recovery token processed but no session established")
-          setStatus("error")
-          setDebugInfo((prev) => ({ ...prev, message: "Recovery failed: No session" }))
           return
         }
       }
@@ -122,6 +120,10 @@ function CallbackContent() {
           <CardContent className="space-y-4">
             <div className="space-y-2 text-sm">
               <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Flow Type:</span>
+                <span className="text-foreground font-medium">{debugInfo.flowType}</span>
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Code present:</span>
                 <span className={debugInfo.codePresent ? "text-green-500" : "text-muted-foreground"}>
                   {debugInfo.codePresent ? "Yes" : "No"}
@@ -131,12 +133,6 @@ function CallbackContent() {
                 <span className="text-muted-foreground">Token present:</span>
                 <span className={debugInfo.tokenPresent ? "text-green-500" : "text-muted-foreground"}>
                   {debugInfo.tokenPresent ? "Yes" : "No"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">PKCE Verifier:</span>
-                <span className={debugInfo.verifierFound ? "text-green-500" : "text-yellow-500"}>
-                  {debugInfo.verifierFound ? "Found" : "Not found"}
                 </span>
               </div>
               <div className="flex items-center justify-between">
