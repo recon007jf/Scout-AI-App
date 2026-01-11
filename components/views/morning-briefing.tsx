@@ -8,22 +8,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Building2, Linkedin, Send, SkipForward, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-
-interface Target {
-  id: string
-  name: string
-  title: string
-  company: string
-  confidence: number
-  avatarUrl?: string
-  linkedinUrl?: string
-  reason: string
-  draftSubject: string
-  draftBody: string
-}
+import { getMorningQueue, approveTarget, skipTarget, type MorningQueueTarget } from "@/lib/api/morning-queue"
 
 export function MorningBriefingView() {
-  const [targets, setTargets] = useState<Target[]>([])
+  const [targets, setTargets] = useState<MorningQueueTarget[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -36,60 +24,15 @@ export function MorningBriefingView() {
   useEffect(() => {
     async function fetchBriefing() {
       try {
-        const response = await fetch("/api/scout/briefing")
+        const queueTargets = await getMorningQueue()
+        setTargets(queueTargets)
 
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`)
-        }
-
-        const data = await response.json()
-
-        if (data.targets && Array.isArray(data.targets)) {
-          const mappedTargets = await Promise.all(
-            data.targets.map(async (target: any) => {
-              let avatarUrl = undefined
-
-              try {
-                const imageResponse = await fetch(
-                  `/api/scout/profile-image?name=${encodeURIComponent(target.name)}&company=${encodeURIComponent(target.company)}`,
-                )
-
-                if (imageResponse.ok) {
-                  const imageData = await imageResponse.json()
-                  if (imageData.imageUrl) {
-                    avatarUrl = imageData.imageUrl
-                  }
-                }
-              } catch (error) {
-                console.error("Failed to fetch profile image for", target.name)
-                // avatarUrl stays undefined for fallback
-              }
-
-              return {
-                id: target.id,
-                name: target.name,
-                title: target.title,
-                company: target.company,
-                confidence: 85,
-                avatarUrl,
-                linkedinUrl: target.linkedinUrl,
-                reason: `Risk Profile: ${target.risk_profile}. ${target.base_archetype ? `Archetype: ${target.base_archetype}` : ""}`,
-                draftSubject: target.draftSubject || "D&O Coverage Review Opportunity",
-                draftBody:
-                  target.draftBody ||
-                  "Hi {name},\n\nI noticed your firm might benefit from reviewing your D&O coverage...",
-              }
-            }),
-          )
-
-          setTargets(mappedTargets)
-          if (mappedTargets.length > 0) {
-            setEditedSubject(mappedTargets[0].draftSubject)
-            setEditedBody(mappedTargets[0].draftBody)
-          }
+        if (queueTargets.length > 0) {
+          setEditedSubject(queueTargets[0].draftSubject)
+          setEditedBody(queueTargets[0].draftBody)
         }
       } catch (error) {
-        console.error("Error fetching briefing:", error)
+        console.error("[Morning Briefing] Error fetching queue:", error)
       } finally {
         setLoading(false)
       }
@@ -108,33 +51,15 @@ export function MorningBriefingView() {
   const handleApproveAndSend = async () => {
     if (!currentTarget) return
 
-    if (!confirm("This will send a REAL email via Outlook. Are you sure?")) {
+    if (!confirm("This will queue the email for sending. Continue?")) {
       return
     }
 
     setSending(true)
     try {
-      const user = JSON.parse(localStorage.getItem("scout_current_user") || "{}")
-      const userEmail = user.email || "andrew@pacificaisystems.com"
+      await approveTarget(currentTarget.id, editedSubject, editedBody)
 
-      const response = await fetch("/api/scout/email/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidate_id: currentTarget.id,
-          final_subject: editedSubject,
-          final_body: editedBody,
-          user_email: userEmail,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to send email")
-      }
-
-      alert("Email sent successfully!")
+      alert("Target approved! Backend will send the email.")
 
       const newTargets = targets.filter((_, i) => i !== currentIndex)
       setTargets(newTargets)
@@ -145,27 +70,34 @@ export function MorningBriefingView() {
         setCurrentIndex(newTargets.length - 1)
       }
     } catch (error) {
-      console.error("Error sending email:", error)
-      alert(`Failed to send email: ${error}`)
+      console.error("[Morning Briefing] Error approving target:", error)
+      alert(`Failed to approve: ${error}`)
     } finally {
       setSending(false)
     }
   }
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     if (!currentTarget) return
 
     if (!confirm("Archive this candidate without sending?")) {
       return
     }
 
-    const newTargets = targets.filter((_, i) => i !== currentIndex)
-    setTargets(newTargets)
+    try {
+      await skipTarget(currentTarget.id)
 
-    if (newTargets.length === 0) {
-      setCurrentIndex(0)
-    } else if (currentIndex >= newTargets.length) {
-      setCurrentIndex(newTargets.length - 1)
+      const newTargets = targets.filter((_, i) => i !== currentIndex)
+      setTargets(newTargets)
+
+      if (newTargets.length === 0) {
+        setCurrentIndex(0)
+      } else if (currentIndex >= newTargets.length) {
+        setCurrentIndex(newTargets.length - 1)
+      }
+    } catch (error) {
+      console.error("[Morning Briefing] Error skipping target:", error)
+      alert(`Failed to skip: ${error}`)
     }
   }
 
@@ -214,13 +146,14 @@ export function MorningBriefingView() {
     return null
   }
 
+  const confidencePercent = currentTarget.confidence === "high" ? 85 : currentTarget.confidence === "medium" ? 70 : 55
+
   return (
     <div className="h-full flex flex-col">
       <div className="bg-amber-500 text-amber-950 px-8 py-3 font-semibold text-center text-lg">
-        ⚠️ TEST MODE — EMAILS ARE NOT BEING SENT ⚠️
+        ⚠️ LIVE DATA MODE — Connected to Supabase ⚠️
       </div>
 
-      {/* Header with navigation */}
       <div className="border-b border-border bg-card/30 backdrop-blur-sm px-8 py-4">
         <div className="flex items-center justify-between">
           <div>
@@ -242,10 +175,8 @@ export function MorningBriefingView() {
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex-1 overflow-auto">
         <div className="grid grid-cols-2 gap-8 p-8 h-full">
-          {/* Left side: Candidate details */}
           <div className="space-y-6">
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Candidate Details</h3>
@@ -284,13 +215,12 @@ export function MorningBriefingView() {
               <p className="text-muted-foreground leading-relaxed">{currentTarget.reason}</p>
               <div className="mt-4">
                 <Badge variant="secondary" className="text-lg px-4 py-2">
-                  {currentTarget.confidence}% Match
+                  {confidencePercent}% Match
                 </Badge>
               </div>
             </Card>
           </div>
 
-          {/* Right side: Editable draft */}
           <div className="space-y-6">
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Draft Email</h3>
@@ -312,7 +242,6 @@ export function MorningBriefingView() {
               </div>
             </Card>
 
-            {/* Action buttons */}
             <div className="flex gap-3">
               <Button
                 size="lg"
@@ -323,12 +252,12 @@ export function MorningBriefingView() {
                 {sending ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    Sending...
+                    Queueing...
                   </>
                 ) : (
                   <>
                     <Send className="w-5 h-5" />
-                    Approve & Send
+                    Approve & Queue
                   </>
                 )}
               </Button>
@@ -347,9 +276,8 @@ export function MorningBriefingView() {
         </div>
       </div>
 
-      {/* Adding Truth Marker to footer */}
       <footer className="mt-8 pt-4 border-t border-border text-xs text-muted-foreground">
-        Build: v247 | Time: {new Date().toISOString()} | Backend: ...7752
+        Build: v248-direct-supabase | Time: {new Date().toISOString()} | Source: target_brokers table
       </footer>
     </div>
   )
