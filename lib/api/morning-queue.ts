@@ -15,59 +15,54 @@ export interface MorningQueueTarget {
 }
 
 /**
- * Fetch morning queue targets directly from Supabase target_brokers table
- * NO API endpoints - direct database query
+ * PRODUCTION FIFO PRIORITY QUEUE
+ * Fetch the NEXT 10 items ready for review from a massive database
+ * Behaves like a high-volume queue, not a static list
  */
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
+  console.log("[Morning Queue] Fetching next batch from Supabase...")
+
   const supabase = createBrowserClient()
 
-  // 1. Get current user (Source of Truth)
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) {
-    console.error("[Morning Queue] No authenticated user")
-    return []
-  }
-
-  // 2. Query the Operational Table - targets ready for review
-  const { data, error } = await supabase
-    .from("target_brokers")
-    .select("*")
-    .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS"])
-    .order("created_at", { ascending: false })
-    .limit(10) // STRICT LIMIT
-
-  if (error) {
-    console.error("[Morning Queue] Fetch Error:", error)
+    const error = new Error("No authenticated user")
+    console.error("[Morning Queue]", error)
     throw error
   }
 
-  console.log("[Morning Queue] Fetched rows:", data?.length || 0)
+  const { data, error } = await supabase
+    .from("target_brokers")
+    .select("*")
+    .in("status", ["ENRICHED", "DRAFT_READY"])
+    .order("created_at", { ascending: true })
+    .limit(10)
 
-  // 3. Map DB Columns to UI Props
-  return (data || []).map((row) => ({
+  if (error) {
+    console.error("[Morning Queue] Supabase Error:", error)
+    throw error
+  }
+
+  console.log("[Morning Queue] Received", data?.length || 0, "rows")
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  return data.map((row) => ({
     id: row.id,
     name: row.full_name || "Unknown",
     title: row.role || "Broker",
     company: row.firm || "Unknown Firm",
-
-    // Map verification_status to confidence level
     confidence: row.verification_status === "verified" ? "high" : "medium",
-
-    // LinkedIn URL if available
     linkedinUrl: row.linkedin_url || undefined,
-
-    // Construct reason from available data
     reason: row.risk_profile
       ? `Risk Profile: ${row.risk_profile}${row.base_archetype ? ` | Archetype: ${row.base_archetype}` : ""}`
       : "Analysis pending",
-
-    // Handle "Writer Hasn't Run Yet" scenario
-    draftSubject: row.draft_subject || "Analysis Complete • Pending Strategy...",
-    draftBody: row.draft_body || "Draft content is being generated...",
-
-    // Pass raw status for logic
+    draftSubject: row.generated_subject_line || "Analysis Complete • Pending Strategy...",
+    draftBody: row.generated_email_body || "Draft content is being generated...",
     status: row.status,
   }))
 }

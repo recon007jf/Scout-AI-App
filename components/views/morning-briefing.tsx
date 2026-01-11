@@ -24,7 +24,9 @@ export function MorningBriefingView() {
   useEffect(() => {
     async function fetchBriefing() {
       try {
+        console.log("[Morning Briefing] Fetching Morning Queue...")
         const queueTargets = await getMorningQueue()
+        console.log("[Morning Briefing] Received", queueTargets.length, "rows")
         setTargets(queueTargets)
 
         if (queueTargets.length > 0) {
@@ -32,7 +34,8 @@ export function MorningBriefingView() {
           setEditedBody(queueTargets[0].draftBody)
         }
       } catch (error) {
-        console.error("[Morning Briefing] Error fetching queue:", error)
+        console.error("[Morning Briefing] Fetch Error:", error)
+        alert(`Failed to load briefing: ${error}`)
       } finally {
         setLoading(false)
       }
@@ -135,8 +138,8 @@ export function MorningBriefingView() {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">
-          <h3 className="text-xl font-semibold text-foreground mb-2">No Candidates Ready</h3>
-          <p className="text-muted-foreground">Check back later for new candidates to review.</p>
+          <h3 className="text-xl font-semibold text-foreground mb-2">Session Complete. Great job! 🎉</h3>
+          <p className="text-muted-foreground">You've cleared this batch. New targets will appear as they're ready.</p>
         </div>
       </div>
     )
@@ -150,9 +153,7 @@ export function MorningBriefingView() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="bg-amber-500 text-amber-950 px-8 py-3 font-semibold text-center text-lg">
-        ⚠️ LIVE DATA MODE — Connected to Supabase ⚠️
-      </div>
+      {/* Removed yellow "LIVE DATA MODE" banner - this is the only mode now */}
 
       <div className="border-b border-border bg-card/30 backdrop-blur-sm px-8 py-4">
         <div className="flex items-center justify-between">

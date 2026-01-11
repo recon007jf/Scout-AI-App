@@ -103,8 +103,6 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [isLoading, setIsLoading] = useState(false)
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<"draft" | "dossier">("draft")
-  const [isDemoMode, setIsDemoMode] = useState(false)
-
   const [outlookConnected, setOutlookConnected] = useState<boolean>(false)
   const [outreachStatus, setOutreachStatus] = useState<"active" | "paused">("paused")
   const [pausedAt, setPausedAt] = useState<Date | null>(null)
@@ -165,19 +163,24 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const loadBriefing = async () => {
     setIsLoading(true)
     try {
+      console.log("[Morning Briefing] Fetching Morning Queue...")
       const { targets: data, isMock } = await getBriefing()
-      setTargets(data)
 
-      setIsDemoMode(isMock)
+      if (isMock) {
+        throw new Error("Mock data returned - should be live data only")
+      }
+
+      setTargets(data)
 
       if (data.length > 0) {
         setSelectedTarget(data[0])
       }
 
-      console.log("[v0] Briefing loaded:", data.length, "targets", isMock ? "(DEMO MODE)" : "(LIVE DATA)")
+      console.log("[Morning Briefing] Received", data.length, "rows")
     } catch (error) {
-      console.error("[v0] Failed to load briefing:", error)
-      toast.error("Failed to load briefing")
+      console.error("[Morning Briefing] Fetch Error:", error)
+      toast.error(`Failed to load briefing: ${error}`)
+      setTargets([])
     } finally {
       setIsLoading(false)
     }
@@ -510,14 +513,6 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                         {pausedTargets.has(target.id) && (
                           <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
                             Paused
-                          </Badge>
-                        )}
-                        {isDemoMode && (
-                          <Badge
-                            variant="outline"
-                            className="bg-amber-500/10 text-amber-600 border-amber-500/30 animate-pulse"
-                          >
-                            OFFLINE MODE: DEMO DATA
                           </Badge>
                         )}
                         <div className="flex items-center gap-1 text-sm">
