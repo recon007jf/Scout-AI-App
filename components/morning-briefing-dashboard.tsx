@@ -822,10 +822,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       <div>
                         <h3 className="font-semibold text-foreground mb-1">Business Persona</h3>
                         <Badge variant="secondary" className="mb-3">
-                          {selectedTarget.businessPersona.type}
+                          {selectedTarget.businessPersona?.type || "Unknown"}
                         </Badge>
                         <p className="text-sm text-muted-foreground mb-4">
-                          {selectedTarget.businessPersona.description}
+                          {selectedTarget.businessPersona?.description || "No description available"}
                         </p>
                         <div className="space-y-3">
                           <div>
@@ -833,7 +833,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                               Decision Style
                             </label>
                             <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.businessPersona.decisionStyle}
+                              {selectedTarget.businessPersona?.decisionStyle || "Not specified"}
                             </p>
                           </div>
                           <div>
@@ -841,7 +841,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                               Communication Preference
                             </label>
                             <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.businessPersona.communicationPreference}
+                              {selectedTarget.businessPersona?.communicationPreference || "Not specified"}
                             </p>
                           </div>
                         </div>
