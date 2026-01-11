@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 
-const BYPASS_ROUTES = ["/login", "/auth/reset-password", "/auth/callback"]
+const BYPASS_ROUTES = ["/login", "/auth/reset-password", "/auth/callback", "/auth/update-password"]
 
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname

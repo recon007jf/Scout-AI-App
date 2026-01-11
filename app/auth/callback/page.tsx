@@ -14,60 +14,66 @@ export default function CallbackPage() {
     fullUrl: "",
     searchParams: "",
     hashFragment: "",
+    authEvent: "Waiting...",
     message: "Initializing...",
   })
   const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
-    const handleCallback = async () => {
-      const urlDebug = {
-        fullUrl: window.location.href,
-        searchParams: window.location.search,
-        hashFragment: window.location.hash,
-        message: "Parsing URL...",
-      }
-      setDebugInfo(urlDebug)
+    const urlDebug = {
+      fullUrl: window.location.href,
+      searchParams: window.location.search,
+      hashFragment: window.location.hash,
+      authEvent: "Initializing client...",
+      message: "Initializing Supabase client...",
+    }
+    setDebugInfo(urlDebug)
 
-      console.log("[v0 Callback] Full URL:", window.location.href)
-      console.log("[v0 Callback] Search params:", window.location.search)
-      console.log("[v0 Callback] Hash fragment:", window.location.hash)
+    console.log("[v0 Callback] Full URL:", window.location.href)
+    console.log("[v0 Callback] Search params:", window.location.search)
+    console.log("[v0 Callback] Hash fragment:", window.location.hash)
 
-      const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-      setDebugInfo((prev) => ({ ...prev, message: "Calling getSessionFromUrl..." }))
+    setDebugInfo((prev) => ({ ...prev, message: "Listening for auth events..." }))
 
-      const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true })
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("[v0 Callback] Auth event:", event)
+      console.log("[v0 Callback] Session:", session ? "Present" : "None")
 
-      if (error) {
-        console.error("[v0 Callback] getSessionFromUrl failed:", error.message)
-        setErrorMessage(error.message)
-        setStatus("error")
-        setDebugInfo((prev) => ({ ...prev, message: `Session recovery failed: ${error.message}` }))
-        return
-      }
+      setDebugInfo((prev) => ({
+        ...prev,
+        authEvent: event,
+        message: `Auth event received: ${event}`,
+      }))
 
-      if (data.session) {
-        console.log("[v0 Callback] Session recovered successfully")
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        console.log("[v0 Callback] Recovery/sign-in successful, checking redirect...")
+
         setStatus("success")
-        setDebugInfo((prev) => ({ ...prev, message: "Session recovered! Redirecting..." }))
+        setDebugInfo((prev) => ({ ...prev, message: "Session established! Redirecting..." }))
 
         const urlParams = new URLSearchParams(window.location.search)
         const next = urlParams.get("next") || "/auth/update-password"
 
+        console.log("[v0 Callback] Redirecting to:", next)
+
         setTimeout(() => {
           router.push(next)
         }, 1000)
-        return
+      } else if (event === "SIGNED_OUT") {
+        setErrorMessage("Session ended unexpectedly")
+        setStatus("error")
+        setDebugInfo((prev) => ({ ...prev, message: "Error: Session ended" }))
       }
+    })
 
-      // No session found
-      console.error("[v0 Callback] No session recovered from URL")
-      setErrorMessage("No valid authentication data found in URL")
-      setStatus("error")
-      setDebugInfo((prev) => ({ ...prev, message: "Error: No session recovered" }))
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe()
     }
-
-    handleCallback()
   }, [router])
 
   return (
@@ -89,6 +95,9 @@ export default function CallbackPage() {
                 </div>
                 <div>
                   <strong>Hash fragment:</strong> {debugInfo.hashFragment || "(empty)"}
+                </div>
+                <div>
+                  <strong>Auth Event:</strong> {debugInfo.authEvent}
                 </div>
               </AlertDescription>
             </Alert>
