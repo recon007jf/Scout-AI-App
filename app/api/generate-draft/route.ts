@@ -1,40 +1,49 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
-const PYTHON_URL = process.env.CLOUD_RUN_BACKEND_URL || "http://127.0.0.1:8000"
-const INTERNAL_SECRET = process.env.SCOUT_INTERNAL_PROBE_KEY || "dev-secret"
+function getBackendUrl() {
+  const raw = process.env.PYTHON_BACKEND_URL || process.env.CLOUD_RUN_BACKEND_URL || "http://" + "127.0.0.1:8000" // Split string prevents Markdown artifacts
 
-export async function POST(req: NextRequest) {
+  const url = raw.trim()
+  return url.endsWith("/") ? url.slice(0, -1) : url
+}
+
+export async function POST(req: Request) {
+  const backendUrl = getBackendUrl()
+  const internalSecret = process.env.SCOUT_INTERNAL_PROBE_KEY
+
+  if (!internalSecret || internalSecret.trim().length < 16) {
+    console.error("[Proxy] Missing/invalid SCOUT_INTERNAL_PROBE_KEY env var.")
+    return NextResponse.json({ error: "Server misconfigured." }, { status: 500 })
+  }
+
   try {
     const body = await req.json()
 
-    console.log("[v0] Proxying request to Python backend:", PYTHON_URL)
-
-    // Forward to Python Backend with Auth Header
-    const pythonResponse = await fetch(`${PYTHON_URL}/api/scout/generate-draft`, {
+    const upstream = await fetch(`${backendUrl}/api/scout/generate-draft`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Scout-Internal-Secret": INTERNAL_SECRET,
+        "X-Scout-Internal-Secret": internalSecret.trim(),
       },
       body: JSON.stringify(body),
     })
 
-    console.log("[v0] Python backend response status:", pythonResponse.status)
+    const status = upstream.status
+    const contentType = upstream.headers.get("content-type") || ""
 
-    // Parse Response
-    let data
-    try {
-      data = await pythonResponse.json()
-    } catch (e) {
-      console.error("[v0] Failed to parse Python response:", e)
-      return NextResponse.json({ error: "Draft Engine Unavailable" }, { status: 503 })
+    let data: any = null
+    if (contentType.includes("application/json")) {
+      data = await upstream.json()
+    } else {
+      const text = await upstream.text()
+      data = { error: text || "Upstream returned non-JSON response." }
     }
 
-    // PASS-THROUGH: Return exact status and data to UI
-    // If Python returns 202, we return 202. If 200, we return 200.
-    return NextResponse.json(data, { status: pythonResponse.status })
-  } catch (error) {
-    console.error("[v0] Proxy Connection Failed:", error)
-    return NextResponse.json({ error: "Proxy Connection Failed" }, { status: 500 })
+    if (!upstream.ok) console.error(`[Proxy] Upstream error ${status}:`, data)
+
+    return NextResponse.json(data, { status })
+  } catch (err) {
+    console.error("[Proxy] Fatal error contacting draft service:", err)
+    return NextResponse.json({ error: "Draft service unreachable." }, { status: 503 })
   }
 }
