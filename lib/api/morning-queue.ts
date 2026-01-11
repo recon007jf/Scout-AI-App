@@ -109,7 +109,6 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   const data = await response.json()
   console.log("[v0] API returned draft (200 OK):", data)
 
-  // Save draft to database for persistence
   console.log("[v0] Saving draft to database...")
   await saveDraftToDatabase(target.id, data.subject, data.body)
   console.log("[v0] Draft saved to database")
@@ -213,10 +212,43 @@ export async function regenerateDraftWithFeedback(
   const data = await response.json()
   console.log("[v0] API returned draft (200 OK):", data)
 
-  // Save draft to database for persistence
   console.log("[v0] Saving draft to database...")
   await saveDraftToDatabase(target.id, data.subject, data.body)
   console.log("[v0] Draft saved to database")
+
+  return {
+    subject: data.subject,
+    body: data.body,
+  }
+}
+
+export async function regenerateDraft(targetId: string): Promise<{ subject: string; body: string }> {
+  console.log("[v0] 🔄 Mock regenerate: Force regenerating draft for target:", targetId)
+
+  const response = await fetch("/api/generate-draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: targetId,
+      force_regenerate: true,
+      comments: "",
+    }),
+  })
+
+  console.log("[v0] API response status:", response.status)
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error("[v0] API error response:", errorText)
+    throw new Error(`Failed to regenerate draft: ${response.status} ${errorText}`)
+  }
+
+  const data = await response.json()
+  console.log("[v0] API returned draft:", data)
+
+  console.log("[v0] 💾 Saving draft to database...")
+  await saveDraftToDatabase(targetId, data.subject, data.body)
+  console.log("[v0] ✅ Draft saved to database")
 
   return {
     subject: data.subject,

@@ -394,38 +394,45 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
-  // Renamed to handleRegenerate to match usage in the update
   const handleRegenerate = async () => {
     if (selectedTarget) {
       setIsRegenerating(true)
+      console.log("[v0] 🔄 Starting regeneration for target:", selectedTarget.id)
+
       try {
         const result = await regenerateDraft(selectedTarget.id)
 
-        const subject = result.subject ?? result.draft_subject ?? ""
-        const body = result.body_clean ?? result.draft ?? result.body ?? ""
+        const subject = result.subject ?? ""
+        const body = result.body ?? ""
 
-        if (subject && body && !body.includes("[LLM PLACEHOLDER]")) {
+        const hasPlaceholders =
+          body.includes("[Your Name]") ||
+          body.includes("[Your Title]") ||
+          body.includes("[Your Contact Information]") ||
+          body.includes("[LLM PLACEHOLDER]")
+
+        if (subject && body && !hasPlaceholders) {
           setDraftCache((prev) => ({
             ...prev,
             [selectedTarget.id]: { subject, body },
           }))
           setEditedSubject(subject)
           setEditedBody(body)
-          console.log("[v0] Draft regenerated successfully:", selectedTarget.id)
+          console.log("[v0] ✅ Draft regenerated successfully:", selectedTarget.id)
           toast({
             title: "Draft Regenerated",
             description: "A new draft has been generated.",
           })
         } else {
-          console.error("[v0] Regeneration returned placeholder or empty content")
+          console.error("[v0] ❌ Regeneration returned placeholder or empty content")
           toast({
             title: "Regeneration Incomplete",
-            description: "The backend is still processing. Please try again in a moment.",
+            description: "The draft contains placeholders. Backend prompts may need adjustment.",
             variant: "destructive",
           })
         }
       } catch (error) {
-        console.error("[v0] Failed to regenerate draft:", error)
+        console.error("[v0] ❌ Failed to regenerate draft:", error)
         toast({
           title: "Regeneration Failed",
           description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
@@ -440,15 +447,23 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const handleRegenerateWithComments = async () => {
     if (selectedTarget && regenerateComments.trim()) {
       setIsRegenerating(true)
+      console.log("[v0] 🔄 Starting regeneration with comments for target:", selectedTarget.id)
+
       try {
         const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
 
         const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
-        const subject = result.subject ?? result.draft_subject ?? ""
-        const body = result.body_clean ?? result.draft ?? result.body ?? ""
+        const subject = result.subject ?? ""
+        const body = result.body ?? ""
 
-        if (subject && body && !body.includes("[LLM PLACEHOLDER]")) {
+        const hasPlaceholders =
+          body.includes("[Your Name]") ||
+          body.includes("[Your Title]") ||
+          body.includes("[Your Contact Information]") ||
+          body.includes("[LLM PLACEHOLDER]")
+
+        if (subject && body && !hasPlaceholders) {
           setDraftCache((prev) => ({
             ...prev,
             [selectedTarget.id]: { subject, body },
@@ -458,22 +473,22 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           setEditedBody(body)
           setRegenerateComments("")
           setShowRegenerateInput(false)
-          setShowCommentDialog(false) // Close the dialog after successful regeneration
-          console.log("[v0] Draft regenerated with feedback:", selectedTarget.id)
+          setShowCommentDialog(false)
+          console.log("[v0] ✅ Draft regenerated with feedback:", selectedTarget.id)
           toast({
             title: "Draft Updated",
             description: "Your feedback has been incorporated.",
           })
         } else {
-          console.error("[v0] Regeneration with feedback returned placeholder or empty content")
+          console.error("[v0] ❌ Regeneration with feedback returned placeholder or empty content")
           toast({
             title: "Regeneration Incomplete",
-            description: "The backend is still processing. Please try again in a moment.",
+            description: "The draft contains placeholders. Backend prompts may need adjustment.",
             variant: "destructive",
           })
         }
       } catch (error) {
-        console.error("[v0] Failed to regenerate draft with feedback:", error)
+        console.error("[v0] ❌ Failed to regenerate draft with feedback:", error)
         toast({
           title: "Regeneration Failed",
           description:
