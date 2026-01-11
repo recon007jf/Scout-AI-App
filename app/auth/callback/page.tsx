@@ -1,145 +1,97 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2, CheckCircle2, XCircle } from "lucide-react"
-import { Suspense } from "react"
 
-function CallbackContent() {
+export default function CallbackPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading")
   const [debugInfo, setDebugInfo] = useState({
-    codePresent: false,
-    tokenPresent: false,
-    typeParam: "",
+    fullUrl: "",
+    searchParams: "",
+    hashFragment: "",
     message: "Initializing...",
-    flowType: "",
   })
   const [errorMessage, setErrorMessage] = useState("")
 
   useEffect(() => {
     const handleCallback = async () => {
+      const urlDebug = {
+        fullUrl: window.location.href,
+        searchParams: window.location.search,
+        hashFragment: window.location.hash,
+        message: "Parsing URL...",
+      }
+      setDebugInfo(urlDebug)
+
+      console.log("[v0 Callback] Full URL:", window.location.href)
+      console.log("[v0 Callback] Search params:", window.location.search)
+      console.log("[v0 Callback] Hash fragment:", window.location.hash)
+
       const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
-      // Parse URL parameters
-      const code = searchParams.get("code")
-      const token = searchParams.get("token")
-      const type = searchParams.get("type")
-      const next = searchParams.get("next") || "/"
+      setDebugInfo((prev) => ({ ...prev, message: "Calling getSessionFromUrl..." }))
 
-      setDebugInfo({
-        codePresent: !!code,
-        tokenPresent: !!token,
-        typeParam: type || "none",
-        message: "Callback received",
-        flowType: type === "recovery" ? "Password Recovery (verifyOtp)" : code ? "OAuth/Magic Link (PKCE)" : "Unknown",
-      })
+      const { data, error } = await supabase.auth.getSessionFromUrl({ storeSession: true })
 
-      console.log("[v0 Callback] Code present:", !!code)
-      console.log("[v0 Callback] Token present:", !!token)
-      console.log("[v0 Callback] Type:", type)
-      console.log("[v0 Callback] Next destination:", next)
-
-      if (token && type === "recovery") {
-        setDebugInfo((prev) => ({ ...prev, message: "Verifying recovery token with verifyOtp..." }))
-        console.log("[v0 Callback] Using verifyOtp for password recovery")
-
-        const { data, error } = await supabase.auth.verifyOtp({
-          token_hash: token,
-          type: "recovery",
-        })
-
-        if (error) {
-          console.error("[v0 Callback] verifyOtp failed:", error.message)
-          setErrorMessage(error.message)
-          setStatus("error")
-          setDebugInfo((prev) => ({ ...prev, message: `Recovery verification failed: ${error.message}` }))
-          return
-        }
-
-        if (data.session) {
-          console.log("[v0 Callback] Recovery session established via verifyOtp")
-          setStatus("success")
-          setDebugInfo((prev) => ({ ...prev, message: "Recovery successful! Redirecting..." }))
-
-          setTimeout(() => {
-            router.push(next)
-          }, 1000)
-          return
-        }
+      if (error) {
+        console.error("[v0 Callback] getSessionFromUrl failed:", error.message)
+        setErrorMessage(error.message)
+        setStatus("error")
+        setDebugInfo((prev) => ({ ...prev, message: `Session recovery failed: ${error.message}` }))
+        return
       }
 
-      if (code) {
-        setDebugInfo((prev) => ({ ...prev, message: "Exchanging code for session (PKCE)..." }))
-        console.log("[v0 Callback] Using exchangeCodeForSession for OAuth/Magic Link")
+      if (data.session) {
+        console.log("[v0 Callback] Session recovered successfully")
+        setStatus("success")
+        setDebugInfo((prev) => ({ ...prev, message: "Session recovered! Redirecting..." }))
 
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        const urlParams = new URLSearchParams(window.location.search)
+        const next = urlParams.get("next") || "/auth/update-password"
 
-        if (error) {
-          console.error("[v0 Callback] Exchange failed:", error.message)
-          setErrorMessage(error.message)
-          setStatus("error")
-          setDebugInfo((prev) => ({ ...prev, message: `Code exchange failed: ${error.message}` }))
-          return
-        }
-
-        if (data.session) {
-          console.log("[v0 Callback] Code exchange successful")
-          setStatus("success")
-          setDebugInfo((prev) => ({ ...prev, message: "Success! Redirecting..." }))
-
-          setTimeout(() => {
-            router.push(next)
-          }, 1000)
-          return
-        }
+        setTimeout(() => {
+          router.push(next)
+        }, 1000)
+        return
       }
 
-      // No valid parameters found
-      console.error("[v0 Callback] No valid auth parameters in URL")
-      setErrorMessage("No valid authentication parameters found in callback URL")
+      // No session found
+      console.error("[v0 Callback] No session recovered from URL")
+      setErrorMessage("No valid authentication data found in URL")
       setStatus("error")
-      setDebugInfo((prev) => ({ ...prev, message: "Error: No valid auth parameters" }))
+      setDebugInfo((prev) => ({ ...prev, message: "Error: No session recovered" }))
     }
 
     handleCallback()
-  }, [searchParams, router])
+  }, [router])
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-2xl">
         <Card className="border-border/50 bg-card/50 backdrop-blur">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-semibold">Authentication Callback</CardTitle>
             <CardDescription>Processing your authentication request</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Flow Type:</span>
-                <span className="text-foreground font-medium">{debugInfo.flowType}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Code present:</span>
-                <span className={debugInfo.codePresent ? "text-green-500" : "text-muted-foreground"}>
-                  {debugInfo.codePresent ? "Yes" : "No"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Token present:</span>
-                <span className={debugInfo.tokenPresent ? "text-green-500" : "text-muted-foreground"}>
-                  {debugInfo.tokenPresent ? "Yes" : "No"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Type:</span>
-                <span className="text-foreground">{debugInfo.typeParam}</span>
-              </div>
-            </div>
+            <Alert className="border-blue-500/50 bg-blue-500/10">
+              <AlertDescription className="text-sm space-y-2 font-mono text-xs break-all">
+                <div>
+                  <strong>Full URL:</strong> {debugInfo.fullUrl || "Loading..."}
+                </div>
+                <div>
+                  <strong>Search params:</strong> {debugInfo.searchParams || "(empty)"}
+                </div>
+                <div>
+                  <strong>Hash fragment:</strong> {debugInfo.hashFragment || "(empty)"}
+                </div>
+              </AlertDescription>
+            </Alert>
 
             <Alert className={status === "error" ? "border-destructive/50 bg-destructive/10" : "border-border/50"}>
               <div className="flex items-center gap-2">
@@ -163,19 +115,5 @@ function CallbackContent() {
         </Card>
       </div>
     </div>
-  )
-}
-
-export default function CallbackPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      }
-    >
-      <CallbackContent />
-    </Suspense>
   )
 }
