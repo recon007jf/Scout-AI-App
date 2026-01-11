@@ -314,23 +314,23 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleStartEdit = () => {
-    if (selectedTarget && draftCache[selectedTarget.id]) {
-      const draft = draftCache[selectedTarget.id]
+    if (selectedTarget) {
+      const draft = draftCache[selectedTarget.id] || { subject: "", body: "" }
       setEditedSubject(draft.subject || "")
       setEditedBody(draft.body || "")
       setIsEditingEmail(true)
       setShowRegenerateInput(false)
     } else {
       toast({
-        title: "No Draft Available",
-        description: "Please wait for the draft to be generated first.",
+        title: "No Target Selected",
+        description: "Please select a target first.",
         variant: "destructive",
       })
     }
   }
 
   const handleSaveEdit = async () => {
-    if (selectedTarget && draftCache[selectedTarget.id]) {
+    if (selectedTarget) {
       const oldDraft = draftCache[selectedTarget.id]
 
       // Update the draft cache immediately for UI
@@ -343,17 +343,23 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       try {
         await saveDraft(selectedTarget.id, editedSubject, editedBody)
         console.log("[v0] Draft saved successfully:", selectedTarget.id)
+        toast({
+          title: "Draft Saved",
+          description: "Your changes have been saved.",
+        })
       } catch (error) {
         console.error("[v0] Failed to save draft:", error)
         // Revert on error
-        setDraftCache((prev) => ({
-          ...prev,
-          [selectedTarget.id]: oldDraft,
-        }))
+        if (oldDraft) {
+          setDraftCache((prev) => ({
+            ...prev,
+            [selectedTarget.id]: oldDraft,
+          }))
+        }
         setIsEditingEmail(true)
         toast({
           title: "Save Failed",
-          description: "Could not save edited draft",
+          description: "Could not save edited draft. Please try again.",
           variant: "destructive",
         })
       }
@@ -373,8 +379,17 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         setEditedSubject(subject)
         setEditedBody(body)
         console.log("[v0] Draft regenerated successfully:", selectedTarget.id)
+        toast({
+          title: "Draft Regenerated",
+          description: "A new draft has been generated.",
+        })
       } catch (error) {
         console.error("[v0] Failed to regenerate draft:", error)
+        toast({
+          title: "Regeneration Failed",
+          description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
+          variant: "destructive",
+        })
       } finally {
         setIsRegenerating(false)
       }
@@ -399,8 +414,18 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         setRegenerateComments("")
         setShowRegenerateInput(false)
         console.log("[v0] Draft regenerated with feedback:", selectedTarget.id)
+        toast({
+          title: "Draft Updated",
+          description: "Your feedback has been incorporated.",
+        })
       } catch (error) {
         console.error("[v0] Failed to regenerate draft with feedback:", error)
+        toast({
+          title: "Regeneration Failed",
+          description:
+            error instanceof Error ? error.message : "Could not regenerate draft with feedback. Please try again.",
+          variant: "destructive",
+        })
       } finally {
         setIsRegenerating(false)
       }

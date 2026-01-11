@@ -11,6 +11,13 @@ export async function POST(req: Request) {
   const backendUrl = getBackendUrl()
   const internalSecret = process.env.SCOUT_INTERNAL_PROBE_KEY
 
+  console.log("=== DRAFT GENERATION PROXY DEBUG ===")
+  console.log("Environment:", process.env.VERCEL_ENV || "local")
+  console.log("Resolved Backend URL:", backendUrl)
+  console.log("Target Endpoint:", `${backendUrl}/api/scout/generate-draft`)
+  console.log("Secret Header Present:", internalSecret ? "yes" : "no")
+  console.log("====================================")
+
   if (!internalSecret || internalSecret.trim().length < 16) {
     console.error("[Proxy] Missing/invalid SCOUT_INTERNAL_PROBE_KEY env var.")
     return NextResponse.json({ error: "Server misconfigured." }, { status: 500 })
