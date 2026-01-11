@@ -47,11 +47,10 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
+    // Only send verified user_email, backend handles sender profile lookup
     const userEmail = user?.email || "admin@pacificaisystems.com"
-    const senderName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Admin"
-    const senderTitle = user?.user_metadata?.title || "Account Executive"
 
-    console.log("[Proxy] Authenticated user:", { email: userEmail, name: senderName, title: senderTitle })
+    console.log("[Proxy] Authenticated user:", { email: userEmail })
 
     const rawId = body.id || body.targetId || body.dossier_id
     const dossier_id = rawId ? String(rawId) : null
@@ -61,13 +60,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing dossier_id" }, { status: 400 })
     }
 
+    // Backend is responsible for sender profile lookup via user_email
     const payload = {
       id: dossier_id,
       force_regenerate: Boolean(body.force_regenerate),
       comments: String(body.comments || ""),
       user_email: userEmail,
-      sender_name: senderName,
-      sender_title: senderTitle,
     }
 
     console.log("[v0] Validated payload:", JSON.stringify(payload, null, 2))
