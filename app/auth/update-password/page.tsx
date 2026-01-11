@@ -69,9 +69,8 @@ export default function UpdatePasswordPage() {
 
       setSuccess(true)
 
-      setTimeout(async () => {
-        await supabase.auth.signOut()
-        router.push("/login?message=password_set")
+      setTimeout(() => {
+        router.push("/")
       }, 2000)
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "An error occurred while updating password"
@@ -222,7 +221,9 @@ export default function UpdatePasswordPage() {
               {success && (
                 <Alert className="bg-green-500/10 border-green-500/50">
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <AlertDescription className="text-green-500">Password set. Please sign in.</AlertDescription>
+                  <AlertDescription className="text-green-500">
+                    Password updated successfully! Redirecting...
+                  </AlertDescription>
                 </Alert>
               )}
 
@@ -234,7 +235,7 @@ export default function UpdatePasswordPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          After setting your password, you'll be able to log in with your email and new password
+          After setting your password, you'll be redirected to the Dashboard
         </p>
       </div>
     </div>
