@@ -51,7 +51,7 @@ export default function LoginPage() {
       }
     }
 
-    router.replace("/clerk-login")
+    router.replace("/sign-in")
   }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {

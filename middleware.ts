@@ -9,9 +9,6 @@ const isPublicRoute = createRouteMatcher([
   "/signup(.*)",
   "/auth(.*)",
   "/api/scout/outlook/test(.*)",
-  "/clerk-test(.*)",
-  "/clerk-login(.*)",
-  "/clerk-signup(.*)", // Added clerk-signup to public routes
   "/health(.*)",
 ])
 

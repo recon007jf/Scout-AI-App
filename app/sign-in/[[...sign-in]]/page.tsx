@@ -1,14 +1,12 @@
 import { SignIn } from "@clerk/nextjs"
 
-export const dynamic = "force-dynamic"
-
-export default function ClerkLoginPage() {
+export default function SignInPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-semibold text-foreground mb-2">Scout (Clerk Test)</h1>
-          <p className="text-sm text-muted-foreground">Testing Clerk Authentication</p>
+          <h1 className="text-3xl font-semibold text-foreground mb-2">Scout</h1>
+          <p className="text-sm text-muted-foreground">Sign in to your account</p>
         </div>
 
         <SignIn
@@ -18,8 +16,6 @@ export default function ClerkLoginPage() {
               card: "bg-card shadow-lg",
             },
           }}
-          signUpUrl="/clerk-signup"
-          forceRedirectUrl="/dashboard-test"
         />
       </div>
     </div>
