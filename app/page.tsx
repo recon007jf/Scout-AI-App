@@ -1,16 +1,13 @@
 import { redirect } from "next/navigation"
-import { createClient } from "@/lib/supabase/server"
+import { auth } from "@clerk/nextjs/server"
 import { AppShell } from "@/components/app-shell"
 
 export default async function Page() {
-  const supabase = await createClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { userId } = await auth()
 
-  // Hard redirect if no session (backup to middleware)
-  if (!session) {
-    redirect("/login")
+  // Redirect to sign-in if not authenticated with Clerk
+  if (!userId) {
+    redirect("/sign-in")
   }
 
   return <AppShell>{/* AppShell renders the appropriate view based on navigation */}</AppShell>
