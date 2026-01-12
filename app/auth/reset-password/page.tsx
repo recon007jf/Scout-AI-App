@@ -35,10 +35,17 @@ export default function ResetPasswordPage() {
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo,
+        error_redirect_to: `${window.location.origin}/auth/error`, // Added error_redirect_to for better error handling
       })
 
       if (error) {
-        throw new Error("Unable to send password reset email. Please try again.")
+        if (error.message.includes("rate limit")) {
+          throw new Error("Too many requests. Please wait a few minutes and try again.")
+        }
+        if (error.message.includes("not found")) {
+          throw new Error("This email address is not registered in our system.")
+        }
+        throw new Error("Unable to send password reset email. Please contact support if this persists.")
       }
 
       const keys = Object.keys(localStorage)

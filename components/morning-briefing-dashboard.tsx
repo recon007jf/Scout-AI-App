@@ -49,6 +49,7 @@ import {
   regenerateDraftWithFeedback,
   saveDraftToDatabase,
 } from "@/lib/api/morning-queue"
+import { createBrowserClient } from "@supabase/ssr" // Import Supabase client
 
 type Target = {
   id: string
@@ -138,18 +139,56 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   useEffect(() => {
     if (!selectedTarget) return
 
-    const targetId = selectedTarget.id
+    const loadDraftForTarget = async () => {
+      const dossier_id = selectedTarget.id
+      if (!dossier_id) return
 
-    // Load existing draft from database if available
-    if (selectedTarget.email_subject && selectedTarget.email_body) {
-      setDraftCache((prev) => ({
-        ...prev,
-        [targetId]: {
-          subject: selectedTarget.email_subject || "",
-          body: selectedTarget.email_body || "",
-        },
-      }))
+      // Check if already in cache
+      if (draftCache[dossier_id]) {
+        console.log("[v0] Draft already in cache for:", dossier_id)
+        setEditedSubject(draftCache[dossier_id].subject)
+        setEditedBody(draftCache[dossier_id].body)
+        return
+      }
+
+      // Load from database
+      console.log("[v0] Loading draft from database for:", dossier_id)
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      )
+
+      const { data, error } = await supabase
+        .from("target_brokers")
+        .select("llm_email_subject, llm_email_body")
+        .eq("id", dossier_id)
+        .single()
+
+      if (error) {
+        console.error("[v0] Failed to load draft from database:", error)
+        return
+      }
+
+      if (data?.llm_email_subject && data?.llm_email_body) {
+        console.log("[v0] ✅ Draft loaded from database")
+        const draft = {
+          subject: data.llm_email_subject,
+          body: data.llm_email_body,
+        }
+
+        setDraftCache((prev) => ({
+          ...prev,
+          [dossier_id]: draft,
+        }))
+
+        setEditedSubject(draft.subject)
+        setEditedBody(draft.body)
+      } else {
+        console.log("[v0] No draft found in database for:", dossier_id)
+      }
     }
+
+    loadDraftForTarget()
   }, [selectedTarget])
 
   const checkOutlookConnection = async () => {
@@ -378,7 +417,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     try {
       const result = await regenerateDraft(selectedTarget)
 
-      setDraftCache(() => ({
+      setDraftCache((prev) => ({
+        ...prev,
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
 
@@ -433,7 +473,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
-      setDraftCache(() => ({
+      setDraftCache((prev) => ({
+        ...prev,
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
 

@@ -184,7 +184,7 @@ export default function LoginPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing in..." : "Sign In"}
+                {isLoading ? "Signing in..." : "Sign In (v2)"}
               </Button>
 
               <div className="text-center">

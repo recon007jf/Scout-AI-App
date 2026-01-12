@@ -7,7 +7,7 @@ const BYPASS_ROUTES = ["/login", "/auth/reset-password", "/auth/callback", "/aut
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
-  if (BYPASS_ROUTES.includes(pathname)) {
+  if (BYPASS_ROUTES.includes(pathname) || pathname.startsWith("/auth/")) {
     return NextResponse.next()
   }
 
