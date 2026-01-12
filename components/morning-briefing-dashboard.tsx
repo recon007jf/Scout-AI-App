@@ -125,13 +125,11 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
   useEffect(() => {
     loadData()
-    checkOutlookConnection()
     checkOutreachStatus()
   }, [])
 
   useEffect(() => {
     const interval = setInterval(() => {
-      checkOutlookConnection()
       checkOutreachStatus()
     }, 60000)
     return () => clearInterval(interval)
