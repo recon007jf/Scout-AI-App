@@ -654,113 +654,125 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         <div className="flex-1 flex flex-col overflow-hidden">
           {selectedTarget && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <Card className="p-6 bg-card/60">
-                <div className="flex items-start gap-4">
-                  <Avatar className="w-16 h-16 border-2 border-border">
-                    <AvatarFallback className="bg-blue-500 text-white font-semibold text-xl">
-                      {getInitials(selectedTarget.contactName || selectedTarget.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <h2 className="text-xl font-semibold text-foreground mb-1">{selectedTarget.contactName}</h2>
-                    <p className="text-muted-foreground mb-2">{selectedTarget.title}</p>
-                    <div className="flex items-center gap-3 text-sm">
-                      <a
-                        href={`mailto:${selectedTarget.email}`}
-                        className="flex items-center gap-1.5 text-primary hover:underline"
-                      >
-                        <Mail className="w-4 h-4" />
-                        Email
-                      </a>
-                      <a
-                        href={selectedTarget.linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 text-primary hover:underline"
-                      >
-                        <Linkedin className="w-4 h-4" />
-                        LinkedIn
-                      </a>
+              <div className="flex-1 overflow-y-auto">
+                <Card className="p-6 bg-card/60">
+                  <div className="flex items-start gap-4">
+                    <Avatar className="w-16 h-16 border-2 border-border">
+                      <AvatarFallback className="bg-blue-500 text-white font-semibold text-xl">
+                        {getInitials(selectedTarget.contactName || selectedTarget.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <h2 className="text-xl font-semibold text-foreground mb-1">{selectedTarget.contactName}</h2>
+                      <p className="text-muted-foreground mb-2">{selectedTarget.title}</p>
+                      <div className="flex items-center gap-3 text-sm">
+                        <a
+                          href={`mailto:${selectedTarget.email}`}
+                          className="flex items-center gap-1.5 text-primary hover:underline"
+                        >
+                          <Mail className="w-4 h-4" />
+                          Email
+                        </a>
+                        <a
+                          href={selectedTarget.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-primary hover:underline"
+                        >
+                          <Linkedin className="w-4 h-4" />
+                          LinkedIn
+                        </a>
+                      </div>
                     </div>
+                    <Badge variant="secondary" className="gap-2">
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      {selectedTarget.confidence}% confidence
+                    </Badge>
                   </div>
-                  <Badge variant="secondary" className="gap-2">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    {selectedTarget.confidence}% confidence
-                  </Badge>
-                </div>
-              </Card>
+                </Card>
 
-              <ContactNotes contactName={selectedTarget.contactName || "Contact"} contactId={selectedTarget.id} />
+                <ContactNotes contactName={selectedTarget.contactName || "Contact"} contactId={selectedTarget.id} />
 
-              <Card className="p-4 bg-card/40">
-                <div className="flex gap-2">
-                  <Button
-                    variant="default"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => handleApprove(selectedTarget.id)}
-                    disabled={!outlookConnected || outreachStatus === "paused"}
+                <Card className="p-4 bg-card/40">
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleApprove(selectedTarget.id)}
+                      disabled={!outlookConnected || outreachStatus === "paused"}
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                      Approve Draft
+                    </Button>
+                    {pausedTargets.has(selectedTarget.id) ? (
+                      <Button
+                        variant="outline"
+                        className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
+                        onClick={() => handleUnpause(selectedTarget.id)}
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Unpause
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="border-border/50 hover:bg-accent/5 bg-transparent"
+                        onClick={() => handlePauseTarget(selectedTarget.id)}
+                      >
+                        <Pause className="w-4 h-4 mr-2" />
+                        Pause
+                      </Button>
+                    )}
+                    {dismissedTargets.has(selectedTarget.id) ? (
+                      <Button
+                        variant="outline"
+                        className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
+                        onClick={() => handleUndoDismiss(selectedTarget.id)}
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Undo
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
+                        onClick={() => handleDismiss(selectedTarget.id)}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Dismiss Target
+                      </Button>
+                    )}
+                  </div>
+                  {!outlookConnected ? (
+                    <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-sm text-orange-600 dark:text-orange-400">
+                      Connect Outlook in Settings to activate outreach and approve drafts.
+                    </div>
+                  ) : outreachStatus === "paused" ? (
+                    <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm text-amber-600 dark:text-amber-400">
+                      Outreach is paused. Resume to approve drafts.
+                    </div>
+                  ) : null}
+                </Card>
+              </div>
+
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
+                  <TabsTrigger
+                    value="draft"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
                   >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Approve Draft
-                  </Button>
-                  {pausedTargets.has(selectedTarget.id) ? (
-                    <Button
-                      variant="outline"
-                      className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
-                      onClick={() => handleUnpause(selectedTarget.id)}
-                    >
-                      <Undo2 className="w-4 h-4 mr-2" />
-                      Unpause
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="border-border/50 hover:bg-accent/5 bg-transparent"
-                      onClick={() => handlePauseTarget(selectedTarget.id)}
-                    >
-                      <Pause className="w-4 h-4 mr-2" />
-                      Pause
-                    </Button>
-                  )}
-                  {dismissedTargets.has(selectedTarget.id) ? (
-                    <Button
-                      variant="outline"
-                      className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
-                      onClick={() => handleUndoDismiss(selectedTarget.id)}
-                    >
-                      <Undo2 className="w-4 h-4 mr-2" />
-                      Undo
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
-                      onClick={() => handleDismiss(selectedTarget.id)}
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Dismiss Target
-                    </Button>
-                  )}
-                </div>
-                {!outlookConnected ? (
-                  <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-sm text-orange-600 dark:text-orange-400">
-                    Connect Outlook in Settings to activate outreach and approve drafts.
-                  </div>
-                ) : outreachStatus === "paused" ? (
-                  <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm text-amber-600 dark:text-amber-400">
-                    Outreach is paused. Resume to approve drafts.
-                  </div>
-                ) : null}
-              </Card>
-
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "draft" | "dossier")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="draft">Review Draft</TabsTrigger>
-                  <TabsTrigger value="dossier">Full Dossier</TabsTrigger>
+                    Review Draft
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="dossier"
+                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
+                  >
+                    Full Dossier
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="draft" className="space-y-4 mt-4">
-                  <Card className="p-6 bg-card/60">
+                  <Card className="p-6">
                     {!currentDraft && !isGeneratingDraft && (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <p className="text-muted-foreground mb-4">No draft available yet.</p>
@@ -794,18 +806,28 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       </div>
                     )}
 
-                    {currentDraft && (
+                    {!isGeneratingDraft && currentDraft && (
                       <>
-                        <div className="space-y-6">
+                        <div>
                           <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-medium text-muted-foreground">SUBJECT LINE</h3>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={handleStartEdit}>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit Email
-                              </Button>
-                              {!isEditingEmail && (
+                              {isEditingEmail ? (
                                 <>
+                                  <Button onClick={handleSaveEdit}>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Save Changes
+                                  </Button>
+                                  <Button variant="outline" onClick={handleCancelEdit}>
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Edit Email
+                                  </Button>
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -847,20 +869,13 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                                 placeholder="Email body..."
                                 className="min-h-[300px] font-mono text-sm"
                               />
-                              <div className="flex gap-2 mt-4">
-                                <Button onClick={handleSaveEdit}>
-                                  <Check className="mr-2 h-4 w-4" />
-                                  Save Changes
-                                </Button>
-                                <Button variant="outline" onClick={handleCancelEdit}>
-                                  Cancel
-                                </Button>
-                              </div>
                             </>
                           ) : (
                             <>
                               <div className="text-lg font-semibold mb-6">{currentDraft.subject}</div>
-                              <div className="prose prose-sm max-w-none whitespace-pre-wrap">{currentDraft.body}</div>
+                              <div className="prose prose-sm max-w-none whitespace-pre-wrap max-h-[500px] overflow-y-auto pr-2">
+                                {currentDraft.body}
+                              </div>
                             </>
                           )}
                         </div>
