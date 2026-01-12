@@ -34,7 +34,6 @@ import {
   approveTarget,
   dismissTarget,
   saveDraft,
-  regenerateDraft,
   pauseTarget,
   getOutreachStatus,
   resumeOutreach,
@@ -43,7 +42,13 @@ import {
 import { cn } from "@/lib/utils"
 import { PauseDurationModal } from "@/components/pause-duration-modal"
 import { ThresholdWarningModal } from "@/components/threshold-warning-modal"
-import { getMorningQueue, generateDraftForTarget, regenerateDraftWithFeedback } from "@/lib/api/morning-queue"
+import {
+  getMorningQueue,
+  generateDraftForTarget,
+  regenerateDraft,
+  regenerateDraftWithFeedback,
+  saveDraftToDatabase,
+} from "@/lib/api/morning-queue"
 
 type Target = {
   id: string
@@ -373,14 +378,16 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     setIsRegenerating(true)
 
     try {
-      console.log("[v0] Mock regenerate: force_regenerate=true, dossier_id=", dossier_id)
-
       const result = await regenerateDraft(selectedTarget)
 
       setDraftCache((prev) => ({
         ...prev,
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
+
+      // Save to database so it persists across refreshes
+      await saveDraftToDatabase(dossier_id, result.subject, result.body)
+      console.log("[v0] ✅ Regenerated draft saved to database")
 
       setEditedSubject(result.subject)
       setEditedBody(result.body)
@@ -433,6 +440,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         ...prev,
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
+
+      // Save to database so it persists across refreshes
+      await saveDraftToDatabase(dossier_id, result.subject, result.body)
+      console.log("[v0] ✅ Regenerated draft with comments saved to database")
 
       setEditedSubject(result.subject)
       setEditedBody(result.body)
