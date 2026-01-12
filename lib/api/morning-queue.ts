@@ -76,14 +76,23 @@ export async function skipTarget(targetId: string): Promise<void> {
 }
 
 export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
-  console.log("[v0] ==> STARTING DRAFT GENERATION for target:", target.id)
+  const dossier_id = target.id
+
+  if (!dossier_id) {
+    console.error("[GenerateDraft] ❌ Missing dossier_id!")
+    throw new Error("Missing Dossier ID")
+  }
+
+  console.log("[GenerateDraft] sending dossier_id=", dossier_id)
+  console.log("[v0] ==> STARTING DRAFT GENERATION for target:", dossier_id)
   console.log("[v0] Target data:", JSON.stringify(target, null, 2))
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      id: target.id,
+      dossier_id,
+      targetId: dossier_id, // Legacy compatibility
       force_regenerate: false,
       comments: "",
     }),
@@ -95,9 +104,12 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   if (response.status === 202) {
     const data = await response.json()
     console.log("[v0] Draft generation started (202 Accepted):", data)
+    if (data.request_trace) {
+      console.log("[v0] Request trace:", data.request_trace)
+    }
 
     // Poll every 2 seconds until draft is ready
-    return await pollForDraft(target.id, 30) // 30 attempts = 60 seconds max
+    return await pollForDraft(dossier_id, 30) // 30 attempts = 60 seconds max
   }
 
   if (!response.ok) {
@@ -108,9 +120,12 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
 
   const data = await response.json()
   console.log("[v0] API returned draft (200 OK):", data)
+  if (data.request_trace) {
+    console.log("[v0] Request trace:", data.request_trace)
+  }
 
   console.log("[v0] Saving draft to database...")
-  await saveDraftToDatabase(target.id, data.subject, data.body)
+  await saveDraftToDatabase(dossier_id, data.subject, data.body)
   console.log("[v0] Draft saved to database")
 
   return {
@@ -188,14 +203,23 @@ export async function regenerateDraftWithFeedback(
   currentDraft: { subject: string; body: string },
   feedback: string,
 ): Promise<{ subject: string; body: string }> {
-  console.log("[v0] Regenerating draft with feedback for target:", target.id)
+  const dossier_id = target.id
+
+  if (!dossier_id) {
+    console.error("[RegenerateDraft] ❌ Missing dossier_id!")
+    throw new Error("Missing Dossier ID")
+  }
+
+  console.log("[RegenerateDraft] sending dossier_id=", dossier_id)
+  console.log("[v0] Regenerating draft with feedback for target:", dossier_id)
   console.log("[v0] Feedback:", feedback)
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      id: target.id,
+      dossier_id,
+      targetId: dossier_id, // Legacy compatibility
       force_regenerate: true,
       comments: feedback || "",
     }),
@@ -211,9 +235,12 @@ export async function regenerateDraftWithFeedback(
 
   const data = await response.json()
   console.log("[v0] API returned draft (200 OK):", data)
+  if (data.request_trace) {
+    console.log("[v0] Request trace:", data.request_trace)
+  }
 
   console.log("[v0] Saving draft to database...")
-  await saveDraftToDatabase(target.id, data.subject, data.body)
+  await saveDraftToDatabase(dossier_id, data.subject, data.body)
   console.log("[v0] Draft saved to database")
 
   return {
@@ -223,13 +250,22 @@ export async function regenerateDraftWithFeedback(
 }
 
 export async function regenerateDraft(targetId: string): Promise<{ subject: string; body: string }> {
-  console.log("[v0] 🔄 FORCE regenerating draft for target:", targetId)
+  const dossier_id = targetId
+
+  if (!dossier_id) {
+    console.error("[RegenerateDraft] ❌ Missing dossier_id!")
+    throw new Error("Missing Dossier ID")
+  }
+
+  console.log("[RegenerateDraft] sending dossier_id=", dossier_id)
+  console.log("[v0] 🔄 FORCE regenerating draft for target:", dossier_id)
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      id: targetId,
+      dossier_id,
+      targetId: dossier_id, // Legacy compatibility
       force_regenerate: true,
       comments: "",
     }),
@@ -244,9 +280,12 @@ export async function regenerateDraft(targetId: string): Promise<{ subject: stri
 
   const data = await response.json()
   console.log("[v0] ✅ API returned regenerated draft:", data)
+  if (data.request_trace) {
+    console.log("[v0] Request trace:", data.request_trace)
+  }
 
   console.log("[v0] 💾 Overwriting draft in database...")
-  await saveDraftToDatabase(targetId, data.subject, data.body)
+  await saveDraftToDatabase(dossier_id, data.subject, data.body)
   console.log("[v0] ✅ Draft overwritten successfully")
 
   return {

@@ -360,21 +360,32 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const handleRegenerate = async () => {
     if (!selectedTarget) return
 
+    const dossier_id = selectedTarget.id
+    if (!dossier_id) {
+      toast({
+        title: "Error",
+        description: "Missing Dossier ID",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsRegenerating(true)
 
     try {
-      const result = await regenerateDraft(selectedTarget.id)
+      const result = await regenerateDraft(dossier_id)
 
       setDraftCache((prev) => ({
         ...prev,
-        [selectedTarget.id]: { subject: result.subject, body: result.body },
+        [dossier_id]: { subject: result.subject, body: result.body },
       }))
+
       setEditedSubject(result.subject)
       setEditedBody(result.body)
 
       toast({
         title: "Draft Regenerated",
-        description: "A new draft has been generated.",
+        description: "New draft created successfully.",
       })
     } catch (error) {
       console.error("[v0] Failed to regenerate draft:", error)
@@ -398,16 +409,26 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       return
     }
 
+    const dossier_id = selectedTarget.id
+    if (!dossier_id) {
+      toast({
+        title: "Error",
+        description: "Missing Dossier ID",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsRegenerating(true)
 
     try {
-      const currentDraft = draftCache[selectedTarget.id] || { subject: "", body: "" }
+      const currentDraft = draftCache[dossier_id] || { subject: "", body: "" }
 
       const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
       setDraftCache((prev) => ({
         ...prev,
-        [selectedTarget.id]: { subject: result.subject, body: result.body },
+        [dossier_id]: { subject: result.subject, body: result.body },
       }))
 
       setEditedSubject(result.subject)
