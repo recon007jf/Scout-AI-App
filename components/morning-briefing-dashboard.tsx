@@ -891,7 +891,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                                     ) : (
                                       <Sparkles className="mr-2 h-4 w-4" />
                                     )}
-                                    Regenerate with AI
+                                    Regenerate with AI (v2)
                                   </Button>
                                   <Button
                                     variant="outline"
