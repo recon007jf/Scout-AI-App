@@ -47,7 +47,6 @@ export async function POST(req: NextRequest) {
       data: { user },
     } = await supabase.auth.getUser()
 
-    // Only send verified user_email, backend handles sender profile lookup
     const userEmail = user?.email || "admin@pacificaisystems.com"
 
     console.log("[Proxy] Authenticated user:", { email: userEmail })
@@ -60,7 +59,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing dossier_id" }, { status: 400 })
     }
 
-    // Backend is responsible for sender profile lookup via user_email
     const payload = {
       id: dossier_id,
       force_regenerate: Boolean(body.force_regenerate),
@@ -96,13 +94,40 @@ export async function POST(req: NextRequest) {
     }
 
     if (status === 200 || status === 202) {
-      const hasSubject = data && (data.subject || data.email_subject || data.llm_email_subject)
-      const hasBody = data && (data.body || data.email_body || data.llm_email_body)
+      // Extract response headers for debugging
+      const llmModel = upstream.headers.get("x-llm-model")
+      const requestTrace = upstream.headers.get("x-request-trace")
+      const llmLatency = upstream.headers.get("x-llm-latency-ms")
 
-      if (!hasSubject || !hasBody) {
-        console.error("[Proxy] Contract violation: Backend returned 200 but missing subject or body keys")
-        console.error("[Proxy] Response data:", JSON.stringify(data, null, 2))
-        return NextResponse.json({ error: "Backend returned incomplete draft data" }, { status: 502 })
+      console.log("[Proxy] Backend headers:", { llmModel, requestTrace, llmLatency })
+
+      // Backend returns: body_with_signature, body_clean, signature_block
+      // Frontend expects: subject, body
+      if (data) {
+        const transformedData = {
+          subject: data.subject || data.email_subject || data.llm_email_subject,
+          // Use body_with_signature (includes signature) or fall back to body_clean
+          body: data.body_with_signature || data.body || data.body_clean || data.email_body || data.llm_email_body,
+          // Pass through additional metadata
+          trace_id: data.trace_id || requestTrace,
+          status: data.status,
+          dossier_id: data.dossier_id,
+        }
+
+        // Validate transformed data
+        if (!transformedData.subject || !transformedData.body) {
+          console.error("[Proxy] Contract violation: Backend response missing required fields")
+          console.error("[Proxy] Original data:", JSON.stringify(data, null, 2))
+          return NextResponse.json({ error: "Backend returned incomplete draft data" }, { status: 502 })
+        }
+
+        console.log("[Proxy] Transformed response:", {
+          subject: transformedData.subject.substring(0, 50) + "...",
+          bodyLength: transformedData.body.length,
+          trace_id: transformedData.trace_id,
+        })
+
+        return NextResponse.json(transformedData, { status })
       }
     }
 
