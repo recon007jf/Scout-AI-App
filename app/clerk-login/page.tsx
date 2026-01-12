@@ -1,5 +1,7 @@
 import { SignIn } from "@clerk/nextjs"
 
+export const dynamic = "force-dynamic"
+
 export default function ClerkLoginPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

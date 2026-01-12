@@ -3,20 +3,33 @@ import type { NextRequest } from "next/server"
 import { createServerClient } from "@supabase/ssr"
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
 
-const BYPASS_ROUTES = ["/login", "/auth/reset-password", "/auth/callback", "/auth/update-password"]
-const CLERK_PROTECTED_ROUTES = ["/clerk-test", "/dashboard-test", "/clerk-login"]
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/signup",
+  "/auth/reset-password",
+  "/auth/callback",
+  "/auth/update-password",
+  "/api/public/*",
+  "/health",
+  "/sign-in*",
+  "/sign-up*",
+]
 
-const isClerkRoute = createRouteMatcher(CLERK_PROTECTED_ROUTES)
+const CLERK_PROTECTED_ROUTES = ["/app/*", "/dashboard/*", "/clerk-test", "/dashboard-test"]
+
+const isPublicRoute = createRouteMatcher(PUBLIC_ROUTES)
+const isClerkProtectedRoute = createRouteMatcher(CLERK_PROTECTED_ROUTES)
 
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
 
-  if (isClerkRoute(req)) {
-    return clerkMiddleware()(req as any, {} as any)
+  if (isPublicRoute(req)) {
+    return NextResponse.next()
   }
 
-  if (BYPASS_ROUTES.includes(pathname) || pathname.startsWith("/auth/")) {
-    return NextResponse.next()
+  if (isClerkProtectedRoute(req)) {
+    return clerkMiddleware()(req as any, {} as any)
   }
 
   const res = NextResponse.next()
