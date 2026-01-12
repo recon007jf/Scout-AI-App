@@ -373,7 +373,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     setIsRegenerating(true)
 
     try {
-      const result = await regenerateDraft(dossier_id)
+      console.log("[v0] Mock regenerate: force_regenerate=true, dossier_id=", dossier_id)
+
+      const result = await regenerateDraft(selectedTarget)
 
       setDraftCache((prev) => ({
         ...prev,
@@ -385,12 +387,13 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       toast({
         title: "Draft Regenerated",
-        description: "New draft created successfully.",
+        description: "A new draft has been generated.",
       })
     } catch (error) {
       console.error("[v0] Failed to regenerate draft:", error)
+
       toast({
-        title: "Regeneration Failed",
+        title: "🔴 Regeneration Failed",
         description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
         variant: "destructive",
       })
@@ -443,8 +446,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       })
     } catch (error) {
       console.error("[v0] Failed to regenerate draft with feedback:", error)
+
       toast({
-        title: "Regeneration Failed",
+        title: "🔴 Regeneration Failed",
         description:
           error instanceof Error ? error.message : "Could not regenerate draft with feedback. Please try again.",
         variant: "destructive",

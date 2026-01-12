@@ -85,31 +85,47 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
 
   console.log("[GenerateDraft] sending dossier_id=", dossier_id)
   console.log("[v0] ==> STARTING DRAFT GENERATION for target:", dossier_id)
-  console.log("[v0] Target data:", JSON.stringify(target, null, 2))
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       dossier_id,
-      targetId: dossier_id, // Legacy compatibility
+      targetId: dossier_id,
       force_regenerate: false,
       comments: "",
     }),
   })
 
+  const requestTrace = response.headers.get("x-request-trace")
+  const llmModel = response.headers.get("x-llm-model")
+
+  if (requestTrace) {
+    console.log("[v0] 🔍 Request Trace:", requestTrace)
+  }
+  if (llmModel) {
+    console.log("[v0] 🤖 LLM Model:", llmModel)
+  }
+
   console.log("[v0] API response status:", response.status)
+
+  if (response.status === 500) {
+    const errorData = await response.json().catch(() => ({}))
+    const errorMessage = errorData.error || errorData.message || "Internal server error"
+    const traceId = errorData.trace_id || requestTrace || "unknown"
+
+    console.error("[v0] 🔴 500 Error:", errorMessage, "| Trace:", traceId)
+
+    throw new Error(`${errorMessage} (trace: ${traceId})`)
+  }
 
   // Handle 202 Accepted (draft is generating in background)
   if (response.status === 202) {
     const data = await response.json()
     console.log("[v0] Draft generation started (202 Accepted):", data)
-    if (data.request_trace) {
-      console.log("[v0] Request trace:", data.request_trace)
-    }
 
     // Poll every 2 seconds until draft is ready
-    return await pollForDraft(dossier_id, 30) // 30 attempts = 60 seconds max
+    return await pollForDraft(dossier_id, 30)
   }
 
   if (!response.ok) {
@@ -119,10 +135,7 @@ export async function generateDraftForTarget(target: MorningQueueTarget): Promis
   }
 
   const data = await response.json()
-  console.log("[v0] API returned draft (200 OK):", data)
-  if (data.request_trace) {
-    console.log("[v0] Request trace:", data.request_trace)
-  }
+  console.log("[v0] ✅ API returned draft (200 OK)")
 
   console.log("[v0] Saving draft to database...")
   await saveDraftToDatabase(dossier_id, data.subject, data.body)
@@ -201,8 +214,77 @@ export async function saveDraftToDatabase(targetId: string, subject: string, bod
 export async function regenerateDraftWithFeedback(
   target: MorningQueueTarget,
   currentDraft: { subject: string; body: string },
-  feedback: string,
+  comments: string,
 ): Promise<{ subject: string; body: string }> {
+  const dossier_id = target.id
+
+  if (!dossier_id) {
+    console.error("[RegenerateDraftWithFeedback] ❌ Missing dossier_id!")
+    throw new Error("Missing Dossier ID")
+  }
+
+  console.log("[v0] ==> REGENERATING with comments for:", dossier_id)
+  console.log("[v0] User comments:", comments)
+
+  const response = await fetch("/api/generate-draft", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      dossier_id,
+      targetId: dossier_id,
+      force_regenerate: true,
+      comments: comments,
+    }),
+  })
+
+  const requestTrace = response.headers.get("x-request-trace")
+  const llmModel = response.headers.get("x-llm-model")
+
+  if (requestTrace) {
+    console.log("[v0] 🔍 Request Trace:", requestTrace)
+  }
+  if (llmModel) {
+    console.log("[v0] 🤖 LLM Model:", llmModel)
+  }
+
+  console.log("[v0] Regenerate with feedback API response status:", response.status)
+
+  if (response.status === 500) {
+    const errorData = await response.json().catch(() => ({}))
+    const errorMessage = errorData.error || errorData.message || "Internal server error"
+    const traceId = errorData.trace_id || requestTrace || "unknown"
+
+    console.error("[v0] 🔴 500 Error:", errorMessage, "| Trace:", traceId)
+
+    throw new Error(`${errorMessage} (trace: ${traceId})`)
+  }
+
+  if (response.status === 202) {
+    const data = await response.json()
+    console.log("[v0] Draft regeneration with feedback started (202 Accepted):", data)
+    return await pollForDraft(dossier_id, 30)
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    console.error("[v0] Regenerate with feedback API error:", errorText)
+    throw new Error(`Failed to regenerate draft with feedback: ${response.status} ${errorText}`)
+  }
+
+  const data = await response.json()
+  console.log("[v0] ✅ Regenerate with feedback API returned draft (200 OK)")
+
+  console.log("[v0] Saving draft with feedback to database...")
+  await saveDraftToDatabase(dossier_id, data.subject, data.body)
+  console.log("[v0] Draft with feedback saved")
+
+  return {
+    subject: data.subject,
+    body: data.body,
+  }
+}
+
+export async function regenerateDraft(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
   const dossier_id = target.id
 
   if (!dossier_id) {
@@ -211,82 +293,59 @@ export async function regenerateDraftWithFeedback(
   }
 
   console.log("[RegenerateDraft] sending dossier_id=", dossier_id)
-  console.log("[v0] Regenerating draft with feedback for target:", dossier_id)
-  console.log("[v0] Feedback:", feedback)
+  console.log("[v0] ==> FORCE REGENERATING draft for:", dossier_id)
 
   const response = await fetch("/api/generate-draft", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       dossier_id,
-      targetId: dossier_id, // Legacy compatibility
-      force_regenerate: true,
-      comments: feedback || "",
-    }),
-  })
-
-  console.log("[v0] API response status:", response.status)
-
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error("[v0] API error response:", errorText)
-    throw new Error(`Failed to regenerate draft: ${response.status} ${errorText}`)
-  }
-
-  const data = await response.json()
-  console.log("[v0] API returned draft (200 OK):", data)
-  if (data.request_trace) {
-    console.log("[v0] Request trace:", data.request_trace)
-  }
-
-  console.log("[v0] Saving draft to database...")
-  await saveDraftToDatabase(dossier_id, data.subject, data.body)
-  console.log("[v0] Draft saved to database")
-
-  return {
-    subject: data.subject,
-    body: data.body,
-  }
-}
-
-export async function regenerateDraft(targetId: string): Promise<{ subject: string; body: string }> {
-  const dossier_id = targetId
-
-  if (!dossier_id) {
-    console.error("[RegenerateDraft] ❌ Missing dossier_id!")
-    throw new Error("Missing Dossier ID")
-  }
-
-  console.log("[RegenerateDraft] sending dossier_id=", dossier_id)
-  console.log("[v0] 🔄 FORCE regenerating draft for target:", dossier_id)
-
-  const response = await fetch("/api/generate-draft", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      dossier_id,
-      targetId: dossier_id, // Legacy compatibility
+      targetId: dossier_id,
       force_regenerate: true,
       comments: "",
     }),
   })
 
-  console.log("[v0] API response status:", response.status)
+  const requestTrace = response.headers.get("x-request-trace")
+  const llmModel = response.headers.get("x-llm-model")
+
+  if (requestTrace) {
+    console.log("[v0] 🔍 Request Trace:", requestTrace)
+  }
+  if (llmModel) {
+    console.log("[v0] 🤖 LLM Model:", llmModel)
+  }
+
+  console.log("[v0] Regenerate API response status:", response.status)
+
+  if (response.status === 500) {
+    const errorData = await response.json().catch(() => ({}))
+    const errorMessage = errorData.error || errorData.message || "Internal server error"
+    const traceId = errorData.trace_id || requestTrace || "unknown"
+
+    console.error("[v0] 🔴 500 Error:", errorMessage, "| Trace:", traceId)
+
+    throw new Error(`${errorMessage} (trace: ${traceId})`)
+  }
+
+  if (response.status === 202) {
+    const data = await response.json()
+    console.log("[v0] Draft regeneration started (202 Accepted):", data)
+    return await pollForDraft(dossier_id, 30)
+  }
 
   if (!response.ok) {
     const errorText = await response.text()
+    console.error("[v0] Regenerate API error:", errorText)
     throw new Error(`Failed to regenerate draft: ${response.status} ${errorText}`)
   }
 
   const data = await response.json()
-  console.log("[v0] ✅ API returned regenerated draft:", data)
-  if (data.request_trace) {
-    console.log("[v0] Request trace:", data.request_trace)
-  }
+  console.log("[v0] ✅ Regenerate API returned draft (200 OK)")
 
-  console.log("[v0] 💾 Overwriting draft in database...")
+  console.log("[v0] Saving regenerated draft to database...")
   await saveDraftToDatabase(dossier_id, data.subject, data.body)
-  console.log("[v0] ✅ Draft overwritten successfully")
+  console.log("[v0] Regenerated draft saved")
 
   return {
     subject: data.subject,
