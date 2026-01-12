@@ -378,8 +378,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     try {
       const result = await regenerateDraft(selectedTarget)
 
-      setDraftCache((prev) => ({
-        ...prev,
+      setDraftCache(() => ({
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
 
@@ -434,8 +433,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
-      setDraftCache((prev) => ({
-        ...prev,
+      setDraftCache(() => ({
         [dossier_id]: { subject: result.subject, body: result.body },
       }))
 

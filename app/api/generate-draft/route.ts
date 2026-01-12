@@ -94,19 +94,35 @@ export async function POST(req: NextRequest) {
     }
 
     if (status === 200 || status === 202) {
-      // Extract response headers for debugging
+      const llmStatus = upstream.headers.get("x-llm-status")
       const llmModel = upstream.headers.get("x-llm-model")
       const requestTrace = upstream.headers.get("x-request-trace")
       const llmLatency = upstream.headers.get("x-llm-latency-ms")
+      const llmTokensOut = upstream.headers.get("x-llm-tokens-out")
 
-      console.log("[Proxy] Backend headers:", { llmModel, requestTrace, llmLatency })
+      console.log("[Proxy] Backend proof headers:", {
+        llmStatus,
+        llmModel,
+        requestTrace,
+        llmLatency,
+        llmTokensOut,
+      })
+
+      if (data.body_with_signature) {
+        console.log("[Proxy] Upstream Body (body_with_signature):", data.body_with_signature.substring(0, 200) + "...")
+      }
+      if (data.body_clean) {
+        console.log("[Proxy] Upstream Body (body_clean):", data.body_clean.substring(0, 200) + "...")
+      }
+      if (data.signature_block) {
+        console.log("[Proxy] Upstream Signature Block:", data.signature_block)
+      }
 
       // Backend returns: body_with_signature, body_clean, signature_block
       // Frontend expects: subject, body
       if (data) {
         const transformedData = {
           subject: data.subject || data.email_subject || data.llm_email_subject,
-          // Use body_with_signature (includes signature) or fall back to body_clean
           body: data.body_with_signature || data.body || data.body_clean || data.email_body || data.llm_email_body,
           // Pass through additional metadata
           trace_id: data.trace_id || requestTrace,
@@ -114,7 +130,8 @@ export async function POST(req: NextRequest) {
           dossier_id: data.dossier_id,
         }
 
-        // Validate transformed data
+        console.log("[Proxy] Downstream Body (after mapping):", transformedData.body?.substring(0, 200) + "...")
+
         if (!transformedData.subject || !transformedData.body) {
           console.error("[Proxy] Contract violation: Backend response missing required fields")
           console.error("[Proxy] Original data:", JSON.stringify(data, null, 2))
@@ -127,7 +144,14 @@ export async function POST(req: NextRequest) {
           trace_id: transformedData.trace_id,
         })
 
-        return NextResponse.json(transformedData, { status })
+        const responseHeaders = new Headers()
+        if (llmStatus) responseHeaders.set("x-llm-status", llmStatus)
+        if (llmModel) responseHeaders.set("x-llm-model", llmModel)
+        if (requestTrace) responseHeaders.set("x-request-trace", requestTrace)
+        if (llmLatency) responseHeaders.set("x-llm-latency-ms", llmLatency)
+        if (llmTokensOut) responseHeaders.set("x-llm-tokens-out", llmTokensOut)
+
+        return NextResponse.json(transformedData, { status, headers: responseHeaders })
       }
     }
 
