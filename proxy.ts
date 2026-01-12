@@ -16,12 +16,12 @@ const PUBLIC_ROUTES = [
   "/sign-up*",
 ]
 
-const CLERK_PROTECTED_ROUTES = ["/app/*", "/dashboard/*", "/clerk-test", "/dashboard-test"]
+const CLERK_PROTECTED_ROUTES = ["/clerk-login", "/clerk-test", "/dashboard-test"]
 
 const isPublicRoute = createRouteMatcher(PUBLIC_ROUTES)
 const isClerkProtectedRoute = createRouteMatcher(CLERK_PROTECTED_ROUTES)
 
-export async function proxy(req: NextRequest) {
+export default clerkMiddleware(async (auth, req: NextRequest) => {
   const pathname = req.nextUrl.pathname
 
   if (isPublicRoute(req)) {
@@ -29,7 +29,8 @@ export async function proxy(req: NextRequest) {
   }
 
   if (isClerkProtectedRoute(req)) {
-    return clerkMiddleware()(req as any, {} as any)
+    await auth.protect()
+    return NextResponse.next()
   }
 
   const res = NextResponse.next()
@@ -61,7 +62,7 @@ export async function proxy(req: NextRequest) {
   await supabase.auth.getUser()
 
   return res
-}
+})
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
