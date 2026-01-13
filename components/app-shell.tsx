@@ -89,38 +89,38 @@ export function AppShell({ children }: AppShellProps) {
     const colorMap = {
       amber: {
         textActive: "text-amber-400",
-        bgActive: "bg-amber-500/10",
-        bgHover: "hover:bg-amber-500/20",
+        bgActive: "bg-amber-900/50",
+        bgHover: "hover:bg-amber-900/30",
       },
       green: {
         textActive: "text-green-400",
-        bgActive: "bg-green-500/10",
-        bgHover: "hover:bg-green-500/20",
+        bgActive: "bg-green-900/50",
+        bgHover: "hover:bg-green-900/30",
       },
       blue: {
         textActive: "text-blue-400",
-        bgActive: "bg-blue-500/10",
-        bgHover: "hover:bg-blue-500/20",
+        bgActive: "bg-blue-900/50",
+        bgHover: "hover:bg-blue-900/30",
       },
       purple: {
         textActive: "text-purple-400",
-        bgActive: "bg-purple-500/10",
-        bgHover: "hover:bg-purple-500/20",
+        bgActive: "bg-purple-900/50",
+        bgHover: "hover:bg-purple-900/30",
       },
       rose: {
         textActive: "text-rose-400",
-        bgActive: "bg-rose-500/10",
-        bgHover: "hover:bg-rose-500/20",
+        bgActive: "bg-rose-900/50",
+        bgHover: "hover:bg-rose-900/30",
       },
       cyan: {
         textActive: "text-cyan-400",
-        bgActive: "bg-cyan-500/10",
-        bgHover: "hover:bg-cyan-500/20",
+        bgActive: "bg-cyan-900/50",
+        bgHover: "hover:bg-cyan-900/30",
       },
       orange: {
         textActive: "text-orange-400",
-        bgActive: "bg-orange-500/10",
-        bgHover: "hover:bg-orange-500/20",
+        bgActive: "bg-orange-900/50",
+        bgHover: "hover:bg-orange-900/30",
       },
     }
 
@@ -218,7 +218,7 @@ export function AppShell({ children }: AppShellProps) {
         <button
           className={cn(
             "w-18 h-18 rounded-xl flex items-center justify-center transition-all mt-auto",
-            activeView === "settings" ? "text-gray-400 bg-gray-500/20" : "text-muted-foreground hover:bg-gray-500/20",
+            activeView === "settings" ? "text-gray-400 bg-gray-900/50" : "text-muted-foreground hover:bg-gray-900/30",
           )}
           onClick={() => setActiveView("settings")}
           title="Settings"
