@@ -1,11 +1,11 @@
 "use client"
 
+import React from "react"
+
 import { AvatarFallback } from "@/components/ui/avatar"
 import { Avatar } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
-import type React from "react"
 import { useState, useEffect } from "react"
-import { Settings, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -25,9 +25,9 @@ import { NotesView } from "@/components/views/notes-view"
 import { CalendarView } from "@/components/views/calendar-view"
 import { PerformanceView } from "@/components/views/performance-view"
 import { GlobalSearch } from "@/components/global-search"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { SettingsView } from "@/components/views/settings-view"
+import { Menu } from "lucide-react" // Fixed import to use lucide-react
 
 interface AppShellProps {
   children: React.ReactNode
@@ -67,13 +67,13 @@ export function AppShell({ children }: AppShellProps) {
   }, [clerkUser, isLoaded])
 
   const navigationItems = [
-    { id: "morning", label: "Morning Briefing", icon: "/icons/coffee.png", color: "amber" },
-    { id: "signals", label: "Signals", icon: "/icons/inbox.png", color: "green" },
-    { id: "network", label: "Network", icon: "/icons/database.png", color: "blue" },
-    { id: "territory", label: "Territory", icon: "/icons/map.png", color: "purple" },
+    { id: "morning", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
+    { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
+    { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
+    { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
     { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose" },
-    { id: "performance", label: "Performance", icon: "/icons/trending.png", color: "cyan" },
-    { id: "notes", label: "Notes", icon: "/icons/document.png", color: "orange" },
+    { id: "performance", label: "Performance", icon: "/icons/performance.png", color: "cyan" },
+    { id: "notes", label: "Notes", icon: "/icons/notes.jpg", color: "orange" },
   ]
 
   const getUserInitials = () => {
@@ -213,13 +213,24 @@ export function AppShell({ children }: AppShellProps) {
                 onClick={() => setActiveView(item.id)}
                 title={item.label}
               >
-                <Image
-                  src={item.icon || "/placeholder.svg"}
-                  alt={item.label}
-                  width={68}
-                  height={68}
-                  className={cn("transition-all", isActive ? "opacity-100" : "opacity-60")}
-                />
+                {typeof item.icon === "string" ? (
+                  <>
+                    <img
+                      src={item.icon || "/placeholder.svg"}
+                      className="w-8 h-8 transition-all"
+                      style={{ opacity: isActive ? 1 : 0.6 }}
+                      alt={item.label}
+                    />
+                    {item.id === "calendar" && (
+                      <div className="absolute bottom-2 text-[10px] font-bold text-foreground">{currentDay}</div>
+                    )}
+                  </>
+                ) : (
+                  React.createElement(item.icon, {
+                    className: "w-8 h-8 transition-all",
+                    style: { opacity: isActive ? 1 : 0.6 },
+                  })
+                )}
               </button>
             )
           })}
@@ -233,7 +244,7 @@ export function AppShell({ children }: AppShellProps) {
           onClick={() => setActiveView("settings")}
           title="Settings"
         >
-          <Settings className="w-8 h-8" />
+          <img src="/icons/settings.png" className="w-8 h-8" alt="Settings" />
         </button>
       </aside>
 
