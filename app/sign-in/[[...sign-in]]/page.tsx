@@ -10,10 +10,13 @@ export default function SignInPage() {
         </div>
 
         <SignIn
+          signInForceRedirectUrl="/"
+          signUpForceRedirectUrl="/"
           appearance={{
             elements: {
               rootBox: "mx-auto",
               card: "bg-card shadow-lg",
+              formFieldInput: "autocomplete-email autocomplete-current-password",
             },
           }}
         />
