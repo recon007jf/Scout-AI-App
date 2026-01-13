@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
+import { getGoogleMapsScriptUrl } from "@/lib/actions/maps"
 
 interface Account {
   id: string
@@ -120,19 +121,21 @@ export default function TerritoryMap({ accounts, selectedAccount, onSelectAccoun
 
   useEffect(() => {
     if (typeof window !== "undefined" && !window.google) {
-      const script = document.createElement("script")
-      const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
-
-      if (!mapsKey) {
-        console.error("[v0] NEXT_PUBLIC_GOOGLE_MAPS_KEY is not configured")
-        return
-      }
-
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapsKey}&libraries=places`
-      script.async = true
-      script.defer = true
-      script.onload = () => setIsLoaded(true)
-      document.head.appendChild(script)
+      getGoogleMapsScriptUrl()
+        .then((scriptUrl) => {
+          const script = document.createElement("script")
+          script.src = scriptUrl
+          script.async = true
+          script.defer = true
+          script.onload = () => setIsLoaded(true)
+          script.onerror = () => {
+            console.error("[v0] Failed to load Google Maps script")
+          }
+          document.head.appendChild(script)
+        })
+        .catch((error) => {
+          console.error("[v0] Error fetching Google Maps URL:", error)
+        })
     } else if (window.google) {
       setIsLoaded(true)
     }

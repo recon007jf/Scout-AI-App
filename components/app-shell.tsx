@@ -296,7 +296,7 @@ export function AppShell({ children }: AppShellProps) {
       </div>
 
       {/* Right Sidebar Navigation */}
-      <div className="w-64 border-l border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
+      <div className="w-auto border-l border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
         {/* AI Agent Panel */}
         <AIAgentPanel />
       </div>
