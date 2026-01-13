@@ -1,13 +1,15 @@
 "use client"
 
+import { AvatarFallback } from "@/components/ui/avatar"
+
+import { Avatar } from "@/components/ui/avatar"
+
+import { cn } from "@/lib/utils"
+
 import type React from "react"
 import { useState, useEffect } from "react"
-import { Target } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Settings, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { logout } from "@/lib/auth"
-import Image from "next/image"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +18,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useUser } from "@clerk/nextjs"
-import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
-import { SignalsView } from "@/components/views/signals-view"
-import { NotesView } from "@/components/views/notes-view"
-import { NetworkView } from "@/components/views/network-view"
-import { TerritoryView } from "@/components/views/territory-view"
-import { GlobalSearch } from "@/components/global-search"
-import { useRouter } from "next/navigation"
+import { useUser, useClerk } from "@clerk/nextjs"
 import { AIAgentPanel } from "@/components/ai-agent-panel"
+import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
+import { SignalsView } from "@/components/views/signals"
+import { NetworkView } from "@/components/views/network"
+import { TerritoryView } from "@/components/views/territory"
+import { NotesView } from "@/components/views/notes"
+import { GlobalSearch } from "@/components/global-search"
+import Image from "next/image"
+import { useRouter } from "next/navigation"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -38,6 +41,7 @@ export function AppShell({ children }: AppShellProps) {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
   const { user: clerkUser, isLoaded } = useUser()
+  const { signOut } = useClerk()
 
   useEffect(() => {
     if (!isLoaded) {
@@ -169,6 +173,10 @@ export function AppShell({ children }: AppShellProps) {
     setActiveView("settings")
   }
 
+  const handleLogout = async () => {
+    await signOut({ redirectUrl: "/sign-in" })
+  }
+
   if (isCheckingAuth) {
     return (
       <div className="flex h-screen items-center justify-center bg-black">
@@ -185,7 +193,7 @@ export function AppShell({ children }: AppShellProps) {
       <aside className="w-20 border-r border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
         {/* Logo */}
         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-          <Target className="w-8 h-8 text-primary" />
+          <Menu className="w-8 h-8 text-primary" />
         </div>
 
         {/* Navigation Items */}
@@ -230,13 +238,7 @@ export function AppShell({ children }: AppShellProps) {
           onClick={() => setActiveView("settings")}
           title="Settings"
         >
-          <Image
-            src="/icons/settings.png"
-            alt="Settings"
-            width={68}
-            height={68}
-            className={cn("transition-all", activeView === "settings" ? "opacity-100" : "opacity-60")}
-          />
+          <Settings className="w-8 h-8" />
         </button>
       </aside>
 
@@ -266,7 +268,10 @@ export function AppShell({ children }: AppShellProps) {
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
                   Log out
                 </DropdownMenuItem>
               </DropdownMenuContent>
