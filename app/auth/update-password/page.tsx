@@ -121,7 +121,7 @@ export default function UpdatePasswordPage() {
                   Password setup link is invalid or expired. Request a new reset email.
                 </AlertDescription>
               </Alert>
-              <Button className="w-full" onClick={() => router.push("/login")}>
+              <Button className="w-full" onClick={() => router.push("/sign-in")}>
                 Back to Login
               </Button>
             </CardContent>

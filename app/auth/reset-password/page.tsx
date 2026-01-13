@@ -154,7 +154,7 @@ export default function ResetPasswordPage() {
               </Button>
 
               <div className="text-center">
-                <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/sign-in" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                   Back to sign in
                 </Link>
               </div>
