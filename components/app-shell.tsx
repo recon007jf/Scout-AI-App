@@ -25,6 +25,7 @@ import { NotesView } from "@/components/views/notes-view"
 import { GlobalSearch } from "@/components/global-search"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { SettingsView } from "@/components/views/settings-view"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -71,6 +72,7 @@ export function AppShell({ children }: AppShellProps) {
     { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose", showDate: true },
     { id: "performance", label: "Performance", icon: "/icons/performance.png", color: "cyan" },
     { id: "notes", label: "Notes", icon: "/icons/notes-icon.svg", color: "orange" },
+    { id: "settings", label: "Settings", icon: "/icons/settings.png", color: "gray" },
   ]
 
   const getUserInitials = () => {
@@ -291,7 +293,7 @@ export function AppShell({ children }: AppShellProps) {
           {activeView === "calendar" && <div>Calendar View Placeholder</div>}
           {activeView === "performance" && <div>Performance View Placeholder</div>}
           {activeView === "notes" && <NotesView />}
-          {activeView === "settings" && <div>Settings View Placeholder</div>}
+          {activeView === "settings" && <SettingsView />}
         </main>
       </div>
 
