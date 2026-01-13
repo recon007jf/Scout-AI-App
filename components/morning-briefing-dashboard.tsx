@@ -47,7 +47,6 @@ import {
   generateDraftForTarget,
   regenerateDraft,
   regenerateDraftWithFeedback,
-  saveDraftToDatabase,
 } from "@/lib/api/morning-queue"
 import { createBrowserClient } from "@supabase/ssr" // Import Supabase client
 
@@ -123,6 +122,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [draftCache, setDraftCache] = useState<Record<string, { subject: string; body: string }>>({})
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
   const [showCommentDialog, setShowCommentDialog] = useState(false) // Added for the comment dialog state
+  const [draftError, setDraftError] = useState<string | null>(null) // Adding state for API error messages
 
   useEffect(() => {
     loadData()
@@ -190,6 +190,73 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
     loadDraftForTarget()
   }, [selectedTarget])
+
+  // Load drafts for all active targets on initial load and when activeTargets changes
+  useEffect(() => {
+    const loadDraftsFromSupabase = async () => {
+      const activeTargets = targets.filter((target) => !dismissedTargets.has(target.id))
+
+      if (!activeTargets || activeTargets.length === 0) return
+
+      console.log("[v0] Loading drafts for", activeTargets.length, "targets")
+
+      const supabase = createBrowserClient()
+
+      try {
+        const targetIds = activeTargets.map((t) => t.id)
+
+        const { data, error } = await supabase
+          .from("target_brokers")
+          .select("id, llm_email_subject, llm_email_body")
+          .in("id", targetIds)
+
+        if (error) {
+          console.error("[v0] ❌ Error loading drafts:", error)
+          setDraftError(`Database error: ${error.message}`)
+          return
+        }
+
+        if (!data || data.length === 0) {
+          console.log("[v0] No drafts found in database for these targets")
+          return
+        }
+
+        console.log(`[v0] Loaded ${data.length} drafts from database`)
+
+        const newCache: Record<string, { subject: string; body: string }> = {}
+
+        data.forEach((row) => {
+          if (row.llm_email_subject && row.llm_email_body) {
+            newCache[row.id] = {
+              subject: row.llm_email_subject,
+              body: row.llm_email_body,
+            }
+            console.log(`[v0] Draft found for ${row.id}:`, {
+              subjectLength: row.llm_email_subject.length,
+              bodyLength: row.llm_email_body.length,
+            })
+          } else {
+            console.log(`[v0] No draft content for ${row.id}`)
+          }
+        })
+
+        setDraftCache((prev) => ({ ...prev, ...newCache }))
+
+        // Set editedSubject/editedBody for the CURRENTLY selected target
+        if (selectedTarget && newCache[selectedTarget.id]) {
+          setEditedSubject(newCache[selectedTarget.id].subject)
+          setEditedBody(newCache[selectedTarget.id].body)
+          console.log(`[v0] Loaded draft for selected target: ${selectedTarget.id}`)
+          setDraftError(null)
+        }
+      } catch (error) {
+        console.error("[v0] ❌ Exception while loading drafts:", error)
+        setDraftError(`Failed to load drafts: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+
+    loadDraftsFromSupabase()
+  }, [targets, dismissedTargets, selectedTarget]) // Use source data instead of derived activeTargets
 
   const checkOutlookConnection = async () => {
     try {
@@ -399,110 +466,89 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
   }
 
-  const handleRegenerate = async () => {
+  const handleRegenerateDraft = async () => {
     if (!selectedTarget) return
 
-    const dossier_id = selectedTarget.id
-    if (!dossier_id) {
-      toast({
-        title: "Error",
-        description: "Missing Dossier ID",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsRegenerating(true)
+    setIsGeneratingDraft(true)
+    setDraftError(null) // Clear previous errors
 
     try {
       const result = await regenerateDraft(selectedTarget)
 
       setDraftCache((prev) => ({
         ...prev,
-        [dossier_id]: { subject: result.subject, body: result.body },
+        [selectedTarget.id]: result,
       }))
-
-      // Save to database so it persists across refreshes
-      await saveDraftToDatabase(dossier_id, result.subject, result.body)
-      console.log("[v0] ✅ Regenerated draft saved to database")
 
       setEditedSubject(result.subject)
       setEditedBody(result.body)
 
-      toast({
-        title: "Draft Regenerated",
-        description: "A new draft has been generated.",
-      })
-    } catch (error) {
-      console.error("[v0] Failed to regenerate draft:", error)
+      setShowRegenerateInput(false)
 
       toast({
-        title: "🔴 Regeneration Failed",
-        description: error instanceof Error ? error.message : "Could not regenerate draft. Please try again.",
+        title: "Draft Regenerated",
+        description: "Your draft has been regenerated with AI.",
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error("[v0] Regenerate failed:", errorMessage)
+      setDraftError(errorMessage)
+      toast({
+        title: "Regeneration Failed",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      setIsRegenerating(false)
+      setIsGeneratingDraft(false)
     }
   }
 
-  const handleRegenerateWithComments = async () => {
-    if (!selectedTarget || !regenerateComments.trim()) {
+  const handleRegenerateWithFeedback = async () => {
+    if (!selectedTarget || !regenerateComments.trim()) return
+
+    const currentDraft = draftCache[selectedTarget.id]
+
+    if (!currentDraft) {
       toast({
-        title: "Comments Required",
-        description: "Please provide feedback for regeneration.",
+        title: "No Current Draft",
+        description: "Generate a draft first before providing feedback.",
         variant: "destructive",
       })
       return
     }
 
-    const dossier_id = selectedTarget.id
-    if (!dossier_id) {
-      toast({
-        title: "Error",
-        description: "Missing Dossier ID",
-        variant: "destructive",
-      })
-      return
-    }
-
-    setIsRegenerating(true)
+    setIsGeneratingDraft(true)
+    setDraftError(null) // Clear previous errors
 
     try {
-      const currentDraft = draftCache[dossier_id] || { subject: "", body: "" }
-
       const result = await regenerateDraftWithFeedback(selectedTarget, currentDraft, regenerateComments)
 
       setDraftCache((prev) => ({
         ...prev,
-        [dossier_id]: { subject: result.subject, body: result.body },
+        [selectedTarget.id]: result,
       }))
-
-      // Save to database so it persists across refreshes
-      await saveDraftToDatabase(dossier_id, result.subject, result.body)
-      console.log("[v0] ✅ Regenerated draft with comments saved to database")
 
       setEditedSubject(result.subject)
       setEditedBody(result.body)
+
       setRegenerateComments("")
       setShowRegenerateInput(false)
-      setShowCommentDialog(false)
 
       toast({
         title: "Draft Updated",
         description: "Your feedback has been incorporated.",
       })
     } catch (error) {
-      console.error("[v0] Failed to regenerate draft with feedback:", error)
-
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      console.error("[v0] Regenerate with feedback failed:", errorMessage)
+      setDraftError(errorMessage)
       toast({
-        title: "🔴 Regeneration Failed",
-        description:
-          error instanceof Error ? error.message : "Could not regenerate draft with feedback. Please try again.",
+        title: "Update Failed",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
-      setIsRegenerating(false)
+      setIsGeneratingDraft(false)
     }
   }
 
@@ -828,16 +874,27 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                     {!currentDraft && !isGeneratingDraft && (
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <p className="text-muted-foreground mb-4">No draft available yet.</p>
+                        {draftError && (
+                          <div className="mb-4 p-4 bg-destructive/10 border border-destructive rounded-md text-sm text-destructive max-w-md">
+                            <strong>Error:</strong> {draftError}
+                          </div>
+                        )}
                         <Button
                           onClick={async () => {
                             setIsGeneratingDraft(true)
+                            setDraftError(null) // Clear previous errors
                             try {
                               const draft = await generateDraftForTarget(selectedTarget)
                               setDraftCache((prev) => ({ ...prev, [selectedTarget.id]: draft }))
+                              setEditedSubject(draft.subject) // Update edited state
+                              setEditedBody(draft.body)
                             } catch (error) {
+                              const errorMessage = error instanceof Error ? error.message : String(error)
+                              console.error("[v0] Draft generation failed:", errorMessage)
+                              setDraftError(errorMessage)
                               toast({
                                 title: "Generation Failed",
-                                description: "Could not generate draft. Please try again.",
+                                description: errorMessage,
                                 variant: "destructive",
                               })
                             } finally {
@@ -858,7 +915,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       </div>
                     )}
 
-                    {!isGeneratingDraft && currentDraft && (
+                    {!isGeneratingDraft && selectedTarget && (
                       <>
                         <div>
                           <div className="flex items-center justify-between mb-4">
@@ -883,10 +940,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={handleRegenerate}
-                                    disabled={isRegenerating}
+                                    onClick={handleRegenerateDraft}
+                                    disabled={isRegenerating || isGeneratingDraft}
                                   >
-                                    {isRegenerating ? (
+                                    {isRegenerating || isGeneratingDraft ? (
                                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     ) : (
                                       <Sparkles className="mr-2 h-4 w-4" />
@@ -897,7 +954,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setShowCommentDialog(true)}
-                                    disabled={isRegenerating}
+                                    disabled={isRegenerating || isGeneratingDraft}
                                   >
                                     <MessageSquare className="mr-2 h-4 w-4" />
                                     Regenerate with Comments
@@ -924,9 +981,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                             </>
                           ) : (
                             <>
-                              <div className="text-lg font-semibold mb-6">{currentDraft.subject}</div>
+                              <div className="text-lg font-semibold mb-6">{editedSubject}</div>
                               <div className="prose prose-sm max-w-none whitespace-pre-wrap max-h-[500px] overflow-y-auto pr-2">
-                                {currentDraft.body}
+                                {editedBody}
                               </div>
                             </>
                           )}
@@ -1142,8 +1199,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
               className="min-h-[120px] mb-4"
             />
             <div className="flex gap-2">
-              <Button onClick={handleRegenerateWithComments} disabled={!regenerateComments.trim() || isRegenerating}>
-                {isRegenerating ? (
+              <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
+                {isGeneratingDraft ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Sparkles className="mr-2 h-4 w-4" />

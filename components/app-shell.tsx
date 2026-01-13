@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useUser } from "@clerk/nextjs"
-import { MorningBriefingView } from "@/components/views/morning-briefing"
+import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
 import { SignalsView } from "@/components/views/signals-view"
 import { NotesView } from "@/components/views/notes-view"
 import { NetworkView } from "@/components/views/network-view"
@@ -282,7 +282,7 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Content */}
         <main className="relative flex-1 overflow-auto">
-          {activeView === "morning-briefing" && <MorningBriefingView />}
+          {activeView === "morning-briefing" && <MorningBriefingDashboard />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}
           {activeView === "territory" && <TerritoryView />}
