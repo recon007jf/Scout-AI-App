@@ -85,63 +85,42 @@ export function AppShell({ children }: AppShellProps) {
       .toUpperCase()
   }
 
-  const getColorClasses = (color: string, isActive: boolean) => {
+  const getColorClasses = (color: string) => {
     const colorMap = {
       amber: {
-        text: "text-amber-400",
-        bg: "bg-amber-500/10",
+        textActive: "text-amber-400",
+        bgActive: "bg-amber-500/10",
         bgHover: "hover:bg-amber-500/20",
-        bgActive: "bg-amber-500/20",
-        pageTint: "bg-amber-950/10",
       },
       green: {
-        text: "text-green-400",
-        bg: "bg-green-500/10",
+        textActive: "text-green-400",
+        bgActive: "bg-green-500/10",
         bgHover: "hover:bg-green-500/20",
-        bgActive: "bg-green-500/20",
-        pageTint: "bg-green-950/10",
       },
       blue: {
-        text: "text-blue-400",
-        bg: "bg-blue-500/10",
+        textActive: "text-blue-400",
+        bgActive: "bg-blue-500/10",
         bgHover: "hover:bg-blue-500/20",
-        bgActive: "bg-blue-500/20",
-        pageTint: "bg-blue-950/10",
       },
       purple: {
-        text: "text-purple-400",
-        bg: "bg-purple-500/10",
+        textActive: "text-purple-400",
+        bgActive: "bg-purple-500/10",
         bgHover: "hover:bg-purple-500/20",
-        bgActive: "bg-purple-500/20",
-        pageTint: "bg-purple-950/10",
       },
       rose: {
-        text: "text-rose-400",
-        bg: "bg-rose-500/10",
+        textActive: "text-rose-400",
+        bgActive: "bg-rose-500/10",
         bgHover: "hover:bg-rose-500/20",
-        bgActive: "bg-rose-500/20",
-        pageTint: "bg-rose-950/10",
       },
       cyan: {
-        text: "text-cyan-400",
-        bg: "bg-cyan-500/10",
+        textActive: "text-cyan-400",
+        bgActive: "bg-cyan-500/10",
         bgHover: "hover:bg-cyan-500/20",
-        bgActive: "bg-cyan-500/20",
-        pageTint: "bg-cyan-950/10",
       },
       orange: {
-        text: "text-orange-400",
-        bg: "bg-orange-500/10",
+        textActive: "text-orange-400",
+        bgActive: "bg-orange-500/10",
         bgHover: "hover:bg-orange-500/20",
-        bgActive: "bg-orange-500/20",
-        pageTint: "bg-orange-950/10",
-      },
-      gray: {
-        text: "text-gray-400",
-        bg: "bg-gray-500/10",
-        bgHover: "hover:bg-gray-500/20",
-        bgActive: "bg-gray-500/20",
-        pageTint: "bg-gray-950/10",
       },
     }
 
@@ -159,7 +138,6 @@ export function AppShell({ children }: AppShellProps) {
       rose: "bg-gradient-to-br from-rose-950/15 via-rose-950/5 to-transparent",
       cyan: "bg-gradient-to-br from-cyan-950/15 via-cyan-950/5 to-transparent",
       orange: "bg-gradient-to-br from-orange-950/15 via-orange-950/5 to-transparent",
-      gray: "bg-gradient-to-br from-gray-950/15 via-gray-950/5 to-transparent",
     }
     return gradientMap[activeItem.color as keyof typeof gradientMap] || ""
   }
@@ -200,15 +178,14 @@ export function AppShell({ children }: AppShellProps) {
         <nav className="flex flex-col gap-5">
           {navigationItems.map((item) => {
             const isActive = activeView === item.id
-            const colors = getColorClasses(item.color, isActive)
+            const colors = getColorClasses(item.color)
 
             return (
               <button
                 key={item.id}
                 className={cn(
-                  "w-16 h-16 rounded-xl flex items-center justify-center transition-all relative",
-                  isActive ? colors.text : "text-muted-foreground",
-                  isActive ? colors.bgActive : colors.bgHover,
+                  "relative w-18 h-18 rounded-xl flex items-center justify-center transition-all",
+                  isActive ? colors.bgActive : `text-muted-foreground hover:${colors.bgHover}`,
                 )}
                 onClick={() => setActiveView(item.id)}
                 title={item.label}
@@ -217,17 +194,19 @@ export function AppShell({ children }: AppShellProps) {
                   <>
                     <img
                       src={item.icon || "/placeholder.svg"}
-                      className="w-8 h-8 transition-all"
+                      className="w-10 h-10 transition-all"
                       style={{ opacity: isActive ? 1 : 0.6 }}
                       alt={item.label}
                     />
                     {item.id === "calendar" && (
-                      <div className="absolute bottom-2 text-[10px] font-bold text-foreground">{currentDay}</div>
+                      <div className="absolute inset-0 flex items-center justify-center text-base font-bold text-foreground pointer-events-none">
+                        {currentDay}
+                      </div>
                     )}
                   </>
                 ) : (
                   React.createElement(item.icon, {
-                    className: "w-8 h-8 transition-all",
+                    className: "w-10 h-10 transition-all",
                     style: { opacity: isActive ? 1 : 0.6 },
                   })
                 )}
@@ -238,13 +217,13 @@ export function AppShell({ children }: AppShellProps) {
 
         <button
           className={cn(
-            "w-16 h-16 rounded-xl flex items-center justify-center transition-all mt-auto",
+            "w-18 h-18 rounded-xl flex items-center justify-center transition-all mt-auto",
             activeView === "settings" ? "text-gray-400 bg-gray-500/20" : "text-muted-foreground hover:bg-gray-500/20",
           )}
           onClick={() => setActiveView("settings")}
           title="Settings"
         >
-          <img src="/icons/settings.png" className="w-8 h-8" alt="Settings" />
+          <img src="/icons/settings.png" className="w-10 h-10" alt="Settings" />
         </button>
       </aside>
 
