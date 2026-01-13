@@ -11,19 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TeamInvites } from "@/components/team-invites"
 import { useUserRole } from "@/lib/hooks/use-user-role"
-import {
-  Bell,
-  Mail,
-  Shield,
-  Zap,
-  Users,
-  Database,
-  Key,
-  MessageSquare,
-  CheckCircle2,
-  XCircle,
-  Wrench,
-} from "lucide-react"
+import { Bell, Mail, Shield, Zap, Users, Key, MessageSquare, CheckCircle2, XCircle } from "lucide-react"
 
 type SettingsTab = "profile" | "notifications" | "outreach" | "integrations" | "ai" | "security" | "team"
 
@@ -37,20 +25,17 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
   const [outlookConnected, setOutlookConnected] = useState<boolean | null>(null)
   const [gmailConnected, setGmailConnected] = useState<boolean | null>(false) // Changed default to false since it shows connected
   const [linkedinConnected, setLinkedinConnected] = useState<boolean | null>(false)
-  const [crmConnected, setCrmConnected] = useState<boolean | null>(false)
-  const [outlookTestResult, setOutlookTestResult] = useState<string | null>(null)
-  const [isTestingOutlook, setIsTestingOutlook] = useState(false)
-  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false)
-  const [isDisconnectingGmail, setIsDisconnectingGmail] = useState(false)
-  const [isConnectingGmail, setIsConnectingGmail] = useState(false)
-  const [isDisconnectingLinkedin, setIsDisconnectingLinkedin] = useState(false)
-  const [isDisconnectingCrm, setIsDisconnectingCrm] = useState(false)
-
   const [profileName, setProfileName] = useState("")
   const [profileEmail, setProfileEmail] = useState("")
   const [profileCompany, setProfileCompany] = useState("")
   const [profileRole, setProfileRole] = useState("")
   const [profileTimezone, setProfileTimezone] = useState("pst")
+  const [outlookTestResult, setOutlookTestResult] = useState<string | null>(null)
+  const [isConnectingOutlook, setIsConnectingOutlook] = useState(false)
+  const [isTestingOutlook, setIsTestingOutlook] = useState(false)
+  const [isConnectingGmail, setIsConnectingGmail] = useState(false)
+  const [isDisconnectingGmail, setIsDisconnectingGmail] = useState(false)
+  const [isDisconnectingLinkedin, setIsDisconnectingLinkedin] = useState(false)
 
   const userRole = useUserRole()
   const [isAdmin, setIsAdmin] = useState(false)
@@ -247,37 +232,6 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
     }
   }
 
-  const disconnectCrm = async () => {
-    if (
-      !confirm(
-        "Are you sure you want to disconnect CRM Integration? You will need to reconnect to sync with Salesforce, HubSpot, etc.",
-      )
-    ) {
-      return
-    }
-
-    setIsDisconnectingCrm(true)
-    try {
-      const response = await fetch("/api/scout/crm/disconnect", {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        alert(`Failed to disconnect CRM: ${errorData.error}`)
-        return
-      }
-
-      setCrmConnected(false)
-      alert("CRM disconnected successfully")
-    } catch (error) {
-      console.error("[CRM Disconnect Error]", error)
-      alert("Failed to disconnect CRM. Please try again.")
-    } finally {
-      setIsDisconnectingCrm(false)
-    }
-  }
-
   const saveProfileChanges = async () => {
     try {
       const userEmail = localStorage.getItem("scout_user_email") || "andrew.oram@pointchealth.com"
@@ -454,7 +408,7 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
             </Card>
 
             <Card className="p-6 bg-card/60">
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-4">
                 <Shield className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-semibold">Appearance</h3>
               </div>
@@ -801,76 +755,6 @@ andrew@pointchealth.com`}
                 >
                   {linkedinConnected ? "Connected" : "Not Connected"}
                 </Badge>
-              </div>
-            </div>
-
-            {/* CRM Integration Card */}
-            <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-card/50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded bg-purple-500/10 flex items-center justify-center">
-                  <Database className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <h4 className="font-medium">CRM Integration</h4>
-                  <p className="text-sm text-muted-foreground">Salesforce, HubSpot, etc.</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {crmConnected ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent border-red-500/20 text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                    onClick={disconnectCrm}
-                    disabled={isDisconnectingCrm}
-                  >
-                    {isDisconnectingCrm ? "Disconnecting..." : "Disconnect"}
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="bg-transparent border-gray-500/20 text-gray-400 cursor-not-allowed opacity-50"
-                    disabled
-                    title="CRM integration not yet available"
-                  >
-                    Connect
-                  </Button>
-                )}
-                <Badge
-                  className={
-                    crmConnected === true
-                      ? "bg-green-500/10 text-green-400"
-                      : crmConnected === false
-                        ? "bg-gray-500/10 text-gray-400"
-                        : "bg-yellow-500/10 text-yellow-400"
-                  }
-                >
-                  {crmConnected ? "Connected" : "Not Connected"}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Developer Tools Card */}
-            <div className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-card/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                    <Wrench className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium">Developer Tools</h4>
-                    <p className="text-sm text-muted-foreground">Testing and debugging</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-transparent border-purple-500/20 text-purple-400 hover:bg-purple-500/10"
-                  onClick={runRefinery}
-                >
-                  Run Refinery Now
-                </Button>
               </div>
             </div>
           </TabsContent>

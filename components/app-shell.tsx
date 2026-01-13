@@ -34,7 +34,7 @@ interface AppShellProps {
 }
 
 export function AppShell({ children }: AppShellProps) {
-  const [activeView, setActiveView] = useState<string>("morning-briefing")
+  const [activeView, setActiveView] = useState<string>("morning")
   const [user, setUser] = useState<{ email: string; name: string; role?: string } | null>(null)
   const [currentDay, setCurrentDay] = useState<number>(new Date().getDate())
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined)
@@ -67,14 +67,13 @@ export function AppShell({ children }: AppShellProps) {
   }, [clerkUser, isLoaded])
 
   const navigationItems = [
-    { id: "morning-briefing", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
-    { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
-    { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
-    { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
-    { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose", showDate: true },
-    { id: "performance", label: "Performance", icon: "/icons/performance.png", color: "cyan" },
-    { id: "notes", label: "Notes", icon: "/icons/notes-icon.svg", color: "orange" },
-    { id: "settings", label: "Settings", icon: "/icons/settings.png", color: "gray" },
+    { id: "morning", label: "Morning Briefing", icon: "/icons/coffee.png", color: "amber" },
+    { id: "signals", label: "Signals", icon: "/icons/inbox.png", color: "green" },
+    { id: "network", label: "Network", icon: "/icons/database.png", color: "blue" },
+    { id: "territory", label: "Territory", icon: "/icons/map.png", color: "purple" },
+    { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose" },
+    { id: "performance", label: "Performance", icon: "/icons/trending.png", color: "cyan" },
+    { id: "notes", label: "Notes", icon: "/icons/document.png", color: "orange" },
   ]
 
   const getUserInitials = () => {
@@ -221,11 +220,6 @@ export function AppShell({ children }: AppShellProps) {
                   height={68}
                   className={cn("transition-all", isActive ? "opacity-100" : "opacity-60")}
                 />
-                {item.showDate && (
-                  <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-black pt-3">
-                    {currentDay}
-                  </span>
-                )}
               </button>
             )
           })}
@@ -288,7 +282,7 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Content */}
         <main className="relative flex-1 overflow-auto">
-          {activeView === "morning-briefing" && <MorningBriefingDashboard />}
+          {activeView === "morning" && <MorningBriefingDashboard />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}
           {activeView === "territory" && <TerritoryView />}
