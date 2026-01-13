@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { Target } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -16,16 +16,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { AIAgentPanel } from "@/components/ai-agent-panel"
-import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
-import { CalendarView } from "@/components/views/calendar-view"
-import { PerformanceView } from "@/components/views/performance-view"
-import { NotesView } from "@/components/views/notes-view"
+import { useUser } from "@clerk/nextjs"
+import { MorningBriefingView } from "@/components/views/morning-briefing"
 import { SignalsView } from "@/components/views/signals-view"
+import { NotesView } from "@/components/views/notes-view"
 import { NetworkView } from "@/components/views/network-view"
 import { TerritoryView } from "@/components/views/territory-view"
-import { SettingsView } from "@/components/views/settings-view"
 import { GlobalSearch } from "@/components/global-search"
 import { useRouter } from "next/navigation"
 
@@ -40,68 +36,30 @@ export function AppShell({ children }: AppShellProps) {
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const router = useRouter()
+  const { user: clerkUser, isLoaded } = useUser()
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const supabase = createBrowserClient()
-      const {
-        data: { user: authUser },
-        error,
-      } = await supabase.auth.getUser()
-
-      if (!authUser && !error) {
-        setIsCheckingAuth(false)
-        return // Don't redirect, just show no user state
-      }
-
-      if (error) {
-        console.error("[v0 AppShell] Auth check error:", error)
-        setIsCheckingAuth(false)
-        return
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("email, name, role")
-        .eq("id", authUser.id)
-        .single()
-
-      if (profile && !profileError) {
-        setUser({
-          email: profile.email || authUser.email || "",
-          name: profile.name || authUser.email?.split("@")[0] || "User",
-          role: profile.role,
-        })
-      } else {
-        const displayName =
-          authUser.user_metadata?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "User"
-
-        setUser({
-          email: authUser.email || "",
-          name: displayName,
-        })
-      }
-
-      setIsCheckingAuth(false)
+    if (!isLoaded) {
+      return
     }
 
-    fetchUser()
+    if (!clerkUser) {
+      console.log("[v0 AppShell] No Clerk user found")
+      setIsCheckingAuth(false)
+      return
+    }
 
-    const updateDay = () => setCurrentDay(new Date().getDate())
-    updateDay()
+    const email = clerkUser.emailAddresses[0]?.emailAddress || ""
+    const name = clerkUser.fullName || clerkUser.firstName || email.split("@")[0] || "User"
 
-    const now = new Date()
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1)
-    const msUntilMidnight = tomorrow.getTime() - now.getTime()
+    setUser({
+      email,
+      name,
+      role: "admin", // Temporary: will be fetched from database via API
+    })
 
-    const midnightTimeout = setTimeout(() => {
-      updateDay()
-      const dailyInterval = setInterval(updateDay, 24 * 60 * 60 * 1000)
-      return () => clearInterval(dailyInterval)
-    }, msUntilMidnight)
-
-    return () => clearTimeout(midnightTimeout)
-  }, [router])
+    setIsCheckingAuth(false)
+  }, [clerkUser, isLoaded])
 
   const navigationItems = [
     { id: "morning-briefing", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
@@ -201,14 +159,14 @@ export function AppShell({ children }: AppShellProps) {
     return gradientMap[activeItem.color as keyof typeof gradientMap] || ""
   }
 
-  const handleSettingsMount = useCallback(() => {
+  const handleSettingsMount = () => {
     setSettingsTab(undefined)
-  }, [])
+  }
 
-  const handleNavigateToSettings = useCallback((tab?: string) => {
+  const handleNavigateToSettings = (tab?: string) => {
     setSettingsTab(tab)
     setActiveView("settings")
-  }, [])
+  }
 
   if (isCheckingAuth) {
     return (
@@ -323,20 +281,23 @@ export function AppShell({ children }: AppShellProps) {
 
         {/* Content */}
         <main className="relative flex-1 overflow-auto">
-          {activeView === "morning-briefing" && (
-            <MorningBriefingDashboard onNavigateToSettings={handleNavigateToSettings} />
-          )}
+          {activeView === "morning-briefing" && <MorningBriefingView />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}
           {activeView === "territory" && <TerritoryView />}
-          {activeView === "calendar" && <CalendarView />}
-          {activeView === "performance" && <PerformanceView />}
+          {activeView === "calendar" && <div>Calendar View Placeholder</div>}
+          {activeView === "performance" && <div>Performance View Placeholder</div>}
           {activeView === "notes" && <NotesView />}
-          {activeView === "settings" && <SettingsView initialTab={settingsTab} onMount={handleSettingsMount} />}
+          {activeView === "settings" && <div>Settings View Placeholder</div>}
         </main>
       </div>
 
-      <AIAgentPanel />
+      <div className="w-64 border-l border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
+        {/* AI Agent Panel Placeholder */}
+        <div className="w-full h-full flex items-center justify-center">
+          <p className="text-muted-foreground">AI Agent Panel Placeholder</p>
+        </div>
+      </div>
     </div>
   )
 }
