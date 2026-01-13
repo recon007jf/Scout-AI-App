@@ -73,7 +73,7 @@ export function AppShell({ children }: AppShellProps) {
     { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
     { id: "calendar", label: "Calendar", icon: "/icons/calendar.png", color: "rose" },
     { id: "performance", label: "Performance", icon: "/icons/performance.png", color: "cyan" },
-    { id: "notes", label: "Notes", icon: "/icons/notes.jpg", color: "orange" },
+    { id: "notes", label: "Notes", icon: "/icons/notes-icon.svg", color: "orange" },
   ]
 
   const getUserInitials = () => {
