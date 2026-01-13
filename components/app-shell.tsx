@@ -1,11 +1,8 @@
 "use client"
 
 import { AvatarFallback } from "@/components/ui/avatar"
-
 import { Avatar } from "@/components/ui/avatar"
-
 import { cn } from "@/lib/utils"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Settings, Menu } from "lucide-react"
@@ -21,10 +18,10 @@ import {
 import { useUser, useClerk } from "@clerk/nextjs"
 import { AIAgentPanel } from "@/components/ai-agent-panel"
 import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
-import { SignalsView } from "@/components/views/signals"
-import { NetworkView } from "@/components/views/network"
-import { TerritoryView } from "@/components/views/territory"
-import { NotesView } from "@/components/views/notes"
+import { SignalsView } from "@/components/views/signals-view"
+import { NetworkView } from "@/components/views/network-view"
+import { TerritoryView } from "@/components/views/territory-view"
+import { NotesView } from "@/components/views/notes-view"
 import { GlobalSearch } from "@/components/global-search"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
