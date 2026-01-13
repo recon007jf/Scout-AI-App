@@ -12,7 +12,7 @@ const isPublicRoute = createRouteMatcher([
   "/health(.*)",
 ])
 
-const BACKEND_URL = process.env.PYTHON_BACKEND_URL || "https://scout-backend-752.up.railway.app"
+const BACKEND_URL = process.env.PYTHON_BACKEND_URL || "https://scout-dashboard-283427197752.us-central1.run.app"
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) {
