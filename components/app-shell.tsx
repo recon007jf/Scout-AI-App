@@ -24,6 +24,7 @@ import { NetworkView } from "@/components/views/network-view"
 import { TerritoryView } from "@/components/views/territory-view"
 import { GlobalSearch } from "@/components/global-search"
 import { useRouter } from "next/navigation"
+import { AIAgentPanel } from "@/components/ai-agent-panel"
 
 interface AppShellProps {
   children: React.ReactNode
@@ -292,11 +293,10 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
 
+      {/* Right Sidebar Navigation */}
       <div className="w-64 border-l border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
-        {/* AI Agent Panel Placeholder */}
-        <div className="w-full h-full flex items-center justify-center">
-          <p className="text-muted-foreground">AI Agent Panel Placeholder</p>
-        </div>
+        {/* AI Agent Panel */}
+        <AIAgentPanel />
       </div>
     </div>
   )
