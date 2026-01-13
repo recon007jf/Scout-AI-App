@@ -22,6 +22,8 @@ import { SignalsView } from "@/components/views/signals-view"
 import { NetworkView } from "@/components/views/network-view"
 import { TerritoryView } from "@/components/views/territory-view"
 import { NotesView } from "@/components/views/notes-view"
+import { CalendarView } from "@/components/views/calendar-view"
+import { PerformanceView } from "@/components/views/performance-view"
 import { GlobalSearch } from "@/components/global-search"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -290,8 +292,8 @@ export function AppShell({ children }: AppShellProps) {
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}
           {activeView === "territory" && <TerritoryView />}
-          {activeView === "calendar" && <div>Calendar View Placeholder</div>}
-          {activeView === "performance" && <div>Performance View Placeholder</div>}
+          {activeView === "calendar" && <CalendarView />}
+          {activeView === "performance" && <PerformanceView />}
           {activeView === "notes" && <NotesView />}
           {activeView === "settings" && <SettingsView />}
         </main>
