@@ -124,7 +124,8 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
           setIsConnectingOutlook(false)
         }
       } catch (error) {
-        setOutlookTestResult("Failed to initiate OAuth")
+        console.error("Outlook OAuth Error:", error)
+        setOutlookTestResult(`Failed to initiate OAuth: ${String(error)}`)
         setIsConnectingOutlook(false)
       }
     }
@@ -640,11 +641,10 @@ andrew@pointchealth.com`}
 
               {outlookTestResult && (
                 <div
-                  className={`flex flex-col gap-2 p-4 rounded-lg border ${
-                    outlookTestResult.includes("success")
+                  className={`flex flex-col gap-2 p-4 rounded-lg border ${outlookTestResult.includes("success")
                       ? "bg-green-500/10 border-green-500/20"
                       : "bg-red-500/10 border-red-500/20"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3">
                     {outlookTestResult.includes("success") ? (

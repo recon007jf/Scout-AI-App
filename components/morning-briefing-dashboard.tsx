@@ -274,7 +274,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       const status = await getOutreachStatus()
       console.log("[v0] Backend Status Field:", status.status)
 
-      if (outlookConnected && status.status === "active") {
+      // Use the authoritative status from backend
+      setOutlookConnected(status.outlook_connected)
+
+      if (status.outlook_connected && status.status === "active") {
         setOutreachStatus("active")
       } else {
         setOutreachStatus("paused")
@@ -1044,7 +1047,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                         <h3 className="font-semibold text-foreground mb-3">Self-Funded Plans Under Management</h3>
                         <div className="space-y-3">
                           {selectedTarget.dossier?.selfFundedPlans &&
-                          selectedTarget.dossier.selfFundedPlans.length > 0 ? (
+                            selectedTarget.dossier.selfFundedPlans.length > 0 ? (
                             selectedTarget.dossier.selfFundedPlans.map((plan, idx) => (
                               <div
                                 key={idx}
@@ -1131,7 +1134,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                         <h3 className="font-semibold text-foreground mb-3">Recent Activity</h3>
                         <ul className="space-y-2">
                           {selectedTarget.dossier?.recentActivity &&
-                          selectedTarget.dossier.recentActivity.length > 0 ? (
+                            selectedTarget.dossier.recentActivity.length > 0 ? (
                             selectedTarget.dossier.recentActivity.map((activity, idx) => (
                               <li key={idx} className="flex gap-2 text-sm text-muted-foreground">
                                 <span className="text-primary mt-1">•</span>

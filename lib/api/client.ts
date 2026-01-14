@@ -450,6 +450,7 @@ export async function getOutreachStatus(): Promise<{
   in_flight_count: number
   next_block_at: string | null
   warning_due: boolean
+  outlook_connected: boolean
 }> {
   if (shouldUseMocks()) {
     return new Promise((resolve) =>
@@ -465,6 +466,7 @@ export async function getOutreachStatus(): Promise<{
             in_flight_count: 0,
             next_block_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
             warning_due: false,
+            outlook_connected: true,
           }),
         100,
       ),
