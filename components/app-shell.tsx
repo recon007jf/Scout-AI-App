@@ -199,7 +199,7 @@ export function AppShell({ children }: AppShellProps) {
                       alt={item.label}
                     />
                     {item.id === "calendar" && (
-                      <div className="absolute inset-0 flex items-center justify-center text-base font-bold text-foreground pointer-events-none">
+                      <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-bold text-foreground pointer-events-none">
                         {currentDay}
                       </div>
                     )}
@@ -288,9 +288,7 @@ export function AppShell({ children }: AppShellProps) {
         {/* AI Agent Panel */}
         <AIAgentPanel />
       </div>
-      <div className="fixed bottom-0 w-full text-xs text-gray-500 text-center py-1 pointer-events-none z-50">
-        Scout UI — Deployed by AG — Build Sentinel v1.1
-      </div>
+
     </div>
   )
 }

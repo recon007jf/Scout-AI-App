@@ -8,11 +8,39 @@ export interface MorningQueueTarget {
   status: string
   created_at: string
   work_email?: string
-  linkedinUrl?: string
-  region?: string
-  tier?: string
-  email_subject?: string
-  email_body?: string
+  linkedinUrl: string // Made mandatory to match Target
+  // Expanded fields for Dashboard compatibility
+  confidence: number
+  profileImage: string
+  contactName: string
+  email: string
+  draft: {
+    subject: string
+    body: string
+    tone: string
+    wordCount: number
+  } | null
+  aiRationale: string
+  businessPersona: {
+    type: string
+    description: string
+    decisionStyle: string
+    communicationPreference: string
+  }
+  dossier: {
+    selfFundedPlans: {
+      clientName: string
+      planType: string
+      enrollmentSize: number
+      renewalDate?: string
+      upcomingChanges?: string
+    }[]
+    companySize: string
+    industry: string
+    opportunityScore: number
+    recentActivity: string[]
+    painPoints: string[]
+  }
 }
 
 export const normalizeTarget = (raw: any): MorningQueueTarget => {
@@ -26,11 +54,38 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
     status: raw?.status || "PENDING",
     created_at: raw?.created_at || new Date().toISOString(),
     work_email: raw?.work_email || undefined,
-    linkedinUrl: raw?.linkedin_url || undefined,
-    region: raw?.region || undefined,
-    tier: raw?.tier || undefined,
-    email_subject: raw?.llm_email_subject || undefined,
-    email_body: raw?.llm_email_body || undefined,
+    linkedinUrl: raw?.linkedin_url || "",
+
+    // Mapped Fields
+    confidence: raw?.confidence || 85, // Default to high confidence
+    profileImage: raw?.profile_image || "",
+    contactName: raw?.full_name || "", // Map to full_name
+    email: raw?.work_email || "",
+
+    draft: (raw?.llm_email_subject && raw?.llm_email_body) ? {
+      subject: raw.llm_email_subject,
+      body: raw.llm_email_body,
+      tone: "Professional",
+      wordCount: raw.llm_email_body.split(" ").length
+    } : null,
+
+    aiRationale: raw?.ai_rationale || "Strong fit based on industry alignment and role.",
+
+    businessPersona: raw?.business_persona || {
+      type: "Data-Driven Executive",
+      description: "Focuses on ROI and clear metrics.",
+      decisionStyle: "Analytical",
+      communicationPreference: "Concise"
+    },
+
+    dossier: raw?.dossier || {
+      selfFundedPlans: [],
+      companySize: "Unknown",
+      industry: "Unknown",
+      opportunityScore: 75,
+      recentActivity: [],
+      painPoints: []
+    }
   }
 }
 

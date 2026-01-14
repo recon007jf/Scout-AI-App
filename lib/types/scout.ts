@@ -54,7 +54,7 @@ export interface BriefingTarget {
   }
   businessPersona: BusinessPersona
   draft: BriefingDraft
-  status: "pending_review" | "approved" | "rejected"
+  status: "pending_review" | "approved" | "rejected" | "sending" | "sent" | "failed" | "replied" | "bounced" | "ooo"
   priority: number
   createdAt: string
 }

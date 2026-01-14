@@ -106,15 +106,15 @@ export async function approveTarget(targetId: string): Promise<{ success: boolea
  * Pauses a target with optional reason
  * Endpoint: POST /api/targets/{id}/pause
  */
-export async function pauseTarget(targetId: string, reason?: string): Promise<{ success: boolean }> {
+export async function pauseTarget(targetId: string, reason?: string, pausedUntil?: string): Promise<{ success: boolean }> {
   if (shouldUseMocks()) {
-    console.log("[v0] Mock pause:", targetId, reason)
+    console.log("[v0] Mock pause:", targetId, reason, pausedUntil)
     return new Promise((resolve) => setTimeout(() => resolve({ success: true }), 200))
   }
 
   return apiRequest(`/api/targets/${targetId}/pause`, {
     method: "POST",
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason, paused_until: pausedUntil }),
   })
 }
 

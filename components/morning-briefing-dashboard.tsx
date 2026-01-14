@@ -87,8 +87,8 @@ type Target = {
     recentActivity: string[]
     painPoints: string[]
   }
-  email_subject?: string
-  email_body?: string
+  status: string
+  created_at: string
 }
 
 type PauseInfo = {
@@ -200,7 +200,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       console.log("[v0] Loading drafts for", activeTargets.length, "targets")
 
-      const supabase = createBrowserClient()
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      )
 
       try {
         const targetIds = activeTargets.map((t) => t.id)
@@ -308,7 +311,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       }
     } catch (error) {
       console.error("[Morning Briefing] Fetch Error:", error)
-      toast.error(`Failed to load briefing: ${error}`)
+      toast({ title: `Failed to load briefing: ${error}`, variant: "destructive" })
       setTargets([])
     } finally {
       setIsLoading(false)
@@ -316,16 +319,19 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const handleApprove = async (targetId: string) => {
-    setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "approved" } : t)))
+    // Optimistic Update: Set status to sending immediately
+    setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "sending" } : t)))
 
     try {
       await approveTarget(targetId)
-      toast.success("Draft approved and queued for sending")
+      toast({ title: "Draft sent successfully", variant: "default" })
+      // Update to Sent
+      setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "sent" } : t)))
       advanceToNextTarget(targetId)
     } catch (error) {
       console.error("[v0] Failed to approve target:", error)
-      toast.error("Failed to approve draft")
-      setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "pending" } : t)))
+      toast({ title: "Failed to approve draft", variant: "destructive" })
+      setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "failed" } : t)))
     }
   }
 
@@ -334,11 +340,11 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
     try {
       await dismissTarget(targetId, "bad_fit")
-      toast.success("Target dismissed")
+      toast({ title: "Target dismissed", variant: "default" })
       advanceToNextTarget(targetId)
     } catch (error) {
       console.error("[v0] Failed to dismiss target:", error)
-      toast.error("Failed to dismiss target")
+      toast({ title: "Failed to dismiss target", variant: "destructive" })
       setDismissedTargets((prev) => {
         const next = new Set(prev)
         next.delete(targetId)
@@ -360,10 +366,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
     try {
       await pauseTarget(targetId, "user_paused")
-      toast.success("Target paused")
+      toast({ title: "Target paused", variant: "default" })
     } catch (error) {
       console.error("[v0] Failed to pause target:", error)
-      toast.error("Failed to pause target")
+      toast({ title: "Failed to pause target", variant: "destructive" })
       setPausedTargets((prev) => {
         const next = new Map(prev)
         next.delete(targetId)
@@ -378,11 +384,12 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       setOutreachStatus("paused")
       setPausedAt(new Date())
       setShowPauseDurationModal(false)
-      toast.success(
-        `Outreach paused ${selectedPauseDuration === "manual" ? "until resumed" : `for ${selectedPauseDuration}`}`,
-      )
+      toast({
+        title: `Outreach paused ${selectedPauseDuration === "manual" ? "until resumed" : `for ${selectedPauseDuration}`}`,
+        variant: "default"
+      })
     } catch (error) {
-      toast.error("Failed to pause outreach")
+      toast({ title: "Failed to pause outreach", variant: "destructive" })
       console.error(error)
     }
   }
@@ -393,16 +400,16 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       setOutreachStatus("active")
       setPausedAt(null)
       setShowThresholdWarning(false)
-      toast.success("Outreach resumed")
+      toast({ title: "Outreach resumed", variant: "default" })
     } catch (error) {
-      toast.error("Failed to resume outreach")
+      toast({ title: "Failed to resume outreach", variant: "destructive" })
       console.error(error)
     }
   }
 
   const handleThresholdKeepPaused = () => {
     setShowThresholdWarning(false)
-    toast.info("Outreach remains paused")
+    toast({ title: "Outreach remains paused", variant: "default" })
   }
 
   const handleThresholdResume = async () => {
@@ -579,13 +586,34 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   const advanceToNextTarget = (currentTargetId: string) => {
-    const currentIndex = targets.findIndex((t) => t.id === currentTargetId)
-    const nextTarget = targets[currentIndex + 1]
+    // We need to advance based on the SORTED list, not raw targets
+    const currentIndex = activeTargets.findIndex((t) => t.id === currentTargetId)
 
-    if (nextTarget) {
-      setSelectedTarget(nextTarget)
-    } else if (currentIndex > 0) {
-      setSelectedTarget(targets[0])
+    // Safety check if current target isn't found
+    if (currentIndex === -1) {
+      if (activeTargets.length > 0) setSelectedTarget(activeTargets[0])
+      return
+    }
+
+    // Find next actionable target (skip processed ones if possible, or just next in list)
+    // Actually, processed items sink to bottom. So picking sorting[0] is correct logic IF we remove current from 'Actionable'.
+    // But current is still in list.
+    // If we just sorted, the processed item is now at bottom.
+    // So `activeTargets[0]` should be the NEXT unsent item (since processed one moved).
+    // EXCEPT: React state update hasn't triggered sort re-render yet within this execution context.
+
+    // Simple logic: Find next Unsent target in original array or just pick next index?
+    // Since sorting creates a new array order, index logic is tricky.
+    // Better: Pick the first target in `activeTargets` that is NOT the current one and is UNSENT.
+    // If all are sent, pick first sent.
+
+    const nextUnsent = activeTargets.find(t => t.id !== currentTargetId && !['sent', 'sending', 'failed'].includes(t.status || ''))
+    if (nextUnsent) {
+      setSelectedTarget(nextUnsent)
+    } else {
+      // No unsent left. Stay on current or pick first.
+      const next = activeTargets.find(t => t.id !== currentTargetId)
+      if (next) setSelectedTarget(next)
     }
   }
 
@@ -595,10 +623,10 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       try {
         await pauseTarget(selectedTarget.id, pauseInfo.type, pauseInfo.date)
-        toast.success("Target paused")
+        toast({ title: "Target paused", variant: "default" })
       } catch (error) {
         console.error("[v0] Failed to pause target:", error)
-        toast.error("Failed to pause target")
+        toast({ title: "Failed to pause target", variant: "destructive" })
         setPausedTargets((prev) => {
           const next = new Map(prev)
           next.delete(selectedTarget.id)
@@ -615,7 +643,14 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
   }
 
-  const activeTargets = targets.filter((target) => !dismissedTargets.has(target.id))
+  // Sorting Logic: Unsent First, Processed Last
+  const activeTargets = targets.filter((target) => !dismissedTargets.has(target.id)).sort((a, b) => {
+    const isProcessedA = ['sent', 'sending', 'failed', 'replied'].includes(a.status || '')
+    const isProcessedB = ['sent', 'sending', 'failed', 'replied'].includes(b.status || '')
+
+    if (isProcessedA === isProcessedB) return 0 // Maintain original order
+    return isProcessedA ? 1 : -1 // Move processed to bottom
+  })
 
   const handleSelectTarget = (target: Target) => {
     setSelectedTarget(target)
@@ -693,61 +728,99 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {activeTargets.map((target) => (
-              <Card
-                key={target.id}
-                className={cn(
-                  "p-4 cursor-pointer transition-all border",
-                  selectedTarget?.id === target.id
-                    ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20"
-                    : "border-border hover:border-blue-500/50 hover:bg-accent/50",
-                )}
-                onClick={() => handleSelectTarget(target)}
-              >
-                <div className="flex items-start gap-3">
-                  <Avatar className="w-12 h-12 border-2 border-border">
-                    <AvatarFallback className="bg-blue-500 text-white font-semibold">
-                      {getInitials(target.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground truncate">{target.name}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{target.title}</p>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {dismissedTargets.has(target.id) && (
-                          <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">
-                            Dismissed
-                          </Badge>
-                        )}
-                        {pausedTargets.has(target.id) && (
-                          <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
-                            Paused
-                          </Badge>
-                        )}
-                        <div className="flex items-center gap-1 text-sm">
-                          <TrendingUp className="h-4 w-4 text-green-500" />
-                          <span className="font-medium text-foreground">{target.confidence}%</span>
+            {activeTargets.map((target) => {
+              // Status Derived Values
+              const status = target.status
+              const isSending = status === "sending"
+              const isSent = status === "sent"
+              const isFailed = status === "failed"
+              const isReplied = status === "replied"
+
+              // Opacity & Overlay styles
+              const cardOpacity = isSending ? "opacity-75" : (isSent || isReplied) ? "opacity-60" : isFailed ? "opacity-80" : "opacity-100"
+              const textColor = (isSent || isReplied) ? "text-muted-foreground" : "text-foreground"
+
+              return (
+                <Card
+                  key={target.id}
+                  className={cn(
+                    "p-4 cursor-pointer transition-all border relative overflow-hidden",
+                    selectedTarget?.id === target.id
+                      ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20"
+                      : "border-border hover:border-blue-500/50 hover:bg-accent/50",
+                    cardOpacity,
+                    isFailed && "border-l-2 border-l-red-500"
+                  )}
+                  onClick={() => handleSelectTarget(target)}
+                >
+                  {isSending && (
+                    <div className="absolute inset-0 bg-card/60 z-10 flex items-center justify-end pr-4 pointer-events-none">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+
+                  <div className="flex items-start gap-3">
+                    <Avatar className="w-12 h-12 border-2 border-border">
+                      <AvatarFallback className="bg-blue-500 text-white font-semibold">
+                        {getInitials(target.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className={cn("font-medium truncate", textColor)}>{target.name}</h3>
+                          <p className={cn("text-sm truncate", textColor || "text-muted-foreground")}>{target.title}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* STATES BADGES */}
+                          {isSent && (
+                            <Badge variant="outline" className="bg-green-900/30 text-green-500 border-none text-xs px-2 py-0.5">
+                              Sent
+                            </Badge>
+                          )}
+                          {isFailed && (
+                            <Badge variant="outline" className="bg-red-900/30 text-red-500 border-none text-xs px-2 py-0.5">
+                              Failed
+                            </Badge>
+                          )}
+
+                          {dismissedTargets.has(target.id) && (
+                            <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30">
+                              Dismissed
+                            </Badge>
+                          )}
+                          {pausedTargets.has(target.id) && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30">
+                              Paused
+                            </Badge>
+                          )}
+
+                          {/* Only show confidence if not sent/failed */}
+                          {!isSent && !isFailed && !isReplied && (
+                            <div className="flex items-center gap-1 text-sm">
+                              <TrendingUp className="h-4 w-4 text-green-500" />
+                              <span className="font-medium text-foreground">{target.confidence}%</span>
+                            </div>
+                          )}
+
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
-                      <Building2 className="h-3 w-3" />
-                      <span className="truncate">{target.company}</span>
-                    </div>
-                    {pausedTargets.has(target.id) && (
-                      <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-                        {pausedTargets.get(target.id) === "next-batch"
-                          ? "→ Moved to next batch today"
-                          : "→ Paused by user"}
+                      <div className={cn("flex items-center gap-1 mt-1 text-xs text-muted-foreground", textColor)}>
+                        <Building2 className="h-3 w-3" />
+                        <span className="truncate">{target.company}</span>
                       </div>
-                    )}
+                      {pausedTargets.has(target.id) && (
+                        <div className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                          {pausedTargets.get(target.id) === "next-batch"
+                            ? "→ Moved to next batch today"
+                            : "→ Paused by user"}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              )
+            })}
           </div>
         </div>
 
@@ -856,7 +929,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                 </Card>
               </div>
 
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "draft" | "dossier")} className="w-full">
                 <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
                   <TabsTrigger
                     value="draft"

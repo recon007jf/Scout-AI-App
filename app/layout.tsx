@@ -48,7 +48,7 @@ export default function RootLayout({
           {children}
           <Analytics />
           <div className="fixed bottom-0 w-full text-xs text-gray-500 text-center py-1 pointer-events-none z-50">
-            Scout UI — Deployed by AG — Build Sentinel v1
+            Scout UI — Deployed by AG — Build Sentinel v2
           </div>
         </body>
       </html>

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle2, XCircle, Edit3, AlertCircle, Sparkles, Building2, Users, MapPin, TrendingUp } from "lucide-react"
+import { CheckCircle2, XCircle, Edit3, AlertCircle, Sparkles, Building2, Users, MapPin, TrendingUp, Loader2, MessageSquare, Clock, RotateCcw } from "lucide-react"
 import type { BriefingTarget } from "@/lib/types/scout"
 
 interface BriefingTargetCardProps {
@@ -16,6 +16,7 @@ interface BriefingTargetCardProps {
   onReject: (targetId: string) => Promise<void>
   onEdit: (targetId: string, updates: { subject: string; body: string }) => Promise<void>
 }
+
 
 export function BriefingTargetCard({
   target,
@@ -30,6 +31,27 @@ export function BriefingTargetCard({
   const [isLoading, setIsLoading] = useState(false)
 
   const matchScore = Math.min(100, Math.max(0, target.priority))
+
+  // Status Logic
+  const status = target.status
+  const isUnsent = status === "pending_review" || status === "rejected" // Group generic "actionable" states
+  const isSending = status === "sending" || status === "approved" // Treat approved as sending start
+  const isSent = status === "sent"
+  const isFailed = status === "failed"
+  const isReply = ["replied", "bounced", "ooo"].includes(status)
+
+  // Visual Styles Mapping
+  const getContainerStyles = () => {
+    if (isSending) return "opacity-75 pointer-events-none"
+    if (isSent || isReply) return "opacity-60"
+    if (isFailed) return "opacity-80 border-l-2 border-l-red-500/70" // Overrides default border
+    return "" // Unsent
+  }
+
+  const getTextStyles = () => {
+    if (isSent || isReply) return "text-muted-foreground"
+    return "text-white"
+  }
 
   const handleApprove = async () => {
     setIsLoading(true)
@@ -72,11 +94,52 @@ export function BriefingTargetCard({
   }
 
   return (
-    <Card className="bg-gray-900 border-gray-800 overflow-hidden">
-      {/* Header: Broker Profile */}
-      <div className="p-6 border-b border-gray-800">
+    <Card className={`bg-gray-900 border-gray-800 overflow-hidden relative transition-all duration-300 ${getContainerStyles()}`}>
+
+      {/* SENDING OVERLAY */}
+      {isSending && (
+        <div className="absolute inset-0 bg-gray-950/60 z-50 flex items-center justify-end pr-8">
+          {/* Spinner placed where buttons would be */}
+          <div className="animate-spin text-muted-foreground">
+            <Loader2 className="w-8 h-8" />
+          </div>
+        </div>
+      )}
+
+      {/* HEADER w/ STATUS BADGE */}
+      <div className="p-6 border-b border-gray-800 relative">
+        {/* Status Badge (Top Right) for Sent/Reply/Failed */}
+        {(isSent || isReply || isFailed) && (
+          <div className="absolute top-6 right-6 flex items-center gap-2">
+            {isSent && (
+              <Badge className="bg-green-900/30 text-green-500 hover:bg-green-900/30">
+                Sent
+              </Badge>
+            )}
+            {status === "replied" && (
+              <Badge className="bg-blue-900/30 text-blue-400 hover:bg-blue-900/30">
+                <MessageSquare className="w-3 h-3 mr-1" /> Replied
+              </Badge>
+            )}
+            {status === "ooo" && (
+              <Badge className="bg-amber-900/30 text-amber-400 hover:bg-amber-900/30">
+                <Clock className="w-3 h-3 mr-1" /> OOO
+              </Badge>
+            )}
+            {status === "bounced" && (
+              <Badge className="bg-red-900/30 text-red-400 hover:bg-red-900/30">
+                <AlertCircle className="w-3 h-3 mr-1" /> Bounced
+              </Badge>
+            )}
+            {isFailed && (
+              <Badge className="bg-red-900/30 text-red-400 hover:bg-red-900/30">
+                <AlertCircle className="w-3 h-3 mr-1" /> Failed
+              </Badge>
+            )}
+          </div>
+        )}
+
         <div className="flex items-start gap-4">
-          {/* LinkedIn Profile Image Placeholder */}
           <Avatar className="w-16 h-16">
             <AvatarImage src={target.broker.avatar || "/placeholder.svg"} alt={target.broker.name} />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-lg">
@@ -87,25 +150,26 @@ export function BriefingTargetCard({
           <div className="flex-1">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-xl font-bold text-white">{target.broker.name}</h3>
+                <h3 className={`text-xl font-bold ${getTextStyles()}`}>{target.broker.name}</h3>
                 <p className="text-gray-400 text-sm">{target.broker.title}</p>
                 <p className="text-gray-500 text-sm">{target.broker.firm}</p>
               </div>
 
-              {/* Match Score */}
-              <div className="flex flex-col items-end">
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles className="w-4 h-4 text-yellow-500" />
-                  <span className="text-2xl font-bold text-white">{matchScore}%</span>
+              {!isSent && !isReply && !isFailed && (
+                <div className="flex flex-col items-end">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="w-4 h-4 text-yellow-500" />
+                    <span className="text-2xl font-bold text-white">{matchScore}%</span>
+                  </div>
+                  <span className="text-xs text-gray-400">Match Score</span>
                 </div>
-                <span className="text-xs text-gray-400">Match Score</span>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Signals: High-Contrast Badges */}
+      {/* Signals */}
       <div className="px-6 py-4 bg-gray-950/50 border-b border-gray-800">
         <div className="flex flex-wrap gap-2">
           {target.signals.map((signal, idx) => (
@@ -121,25 +185,25 @@ export function BriefingTargetCard({
         </div>
       </div>
 
-      {/* The Brain: Business Persona */}
+      {/* The Brain */}
       <div className="p-6 border-b border-gray-800 bg-blue-950/20">
         <div className="flex items-start gap-3 mb-3">
           <Sparkles className="w-5 h-5 text-blue-400 mt-0.5" />
           <div>
             <h4 className="text-sm font-semibold text-blue-400 mb-1">AI Analysis</h4>
-            <p className="text-white font-medium">{target.businessPersona.type}</p>
+            <p className={`font-medium ${getTextStyles()}`}>{target.businessPersona.type}</p>
             <p className="text-gray-400 text-sm mt-1">{target.businessPersona.description}</p>
           </div>
         </div>
-
+        {/* ... (Persona Details kept simple or hidden based on opacity) ... */}
         <div className="grid grid-cols-2 gap-3 mt-4">
           <div className="bg-gray-900/50 p-3 rounded">
             <p className="text-xs text-gray-500 mb-1">Decision Style</p>
-            <p className="text-sm text-white">{target.businessPersona.decisionStyle}</p>
+            <p className={`text-sm ${getTextStyles()}`}>{target.businessPersona.decisionStyle}</p>
           </div>
           <div className="bg-gray-900/50 p-3 rounded">
             <p className="text-xs text-gray-500 mb-1">Communication</p>
-            <p className="text-sm text-white">{target.businessPersona.communicationPreference}</p>
+            <p className={`text-sm ${getTextStyles()}`}>{target.businessPersona.communicationPreference}</p>
           </div>
         </div>
       </div>
@@ -156,23 +220,16 @@ export function BriefingTargetCard({
             <TrendingUp className="w-4 h-4 text-gray-500" />
             <span className="text-gray-300">{target.sponsor.revenue}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-300">{target.sponsor.employees.toLocaleString()} employees</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-300">{target.sponsor.location}</span>
-          </div>
+          {/* ... */}
         </div>
       </div>
 
-      {/* The Action: Draft Email */}
+      {/* Proposed Outreach (Body) */}
       <div className="p-6 border-b border-gray-800">
         <h4 className="text-sm font-semibold text-gray-400 mb-3">Proposed Outreach</h4>
-
         {isEditing ? (
           <div className="space-y-3">
+            {/* Edit Mode Inputs */}
             <div>
               <label className="text-xs text-gray-500 mb-1 block">Subject</label>
               <input
@@ -193,67 +250,78 @@ export function BriefingTargetCard({
             </div>
           </div>
         ) : (
-          <div className="bg-gray-950 border border-gray-700 rounded p-4">
-            <p className="text-sm font-semibold text-white mb-2">Subject: {target.draft.subject}</p>
+          <div className={`bg-gray-950 border border-gray-700 rounded p-4 ${isSent ? 'opacity-50' : ''}`}>
+            <p className={`text-sm font-semibold mb-2 ${getTextStyles()}`}>Subject: {target.draft.subject}</p>
             <p className="text-sm text-gray-300 whitespace-pre-wrap">{target.draft.body}</p>
           </div>
         )}
       </div>
 
       {/* Action Controls */}
-      <div className="p-6 bg-gray-950/30">
-        {isEditing ? (
-          <div className="flex gap-3">
-            <Button
-              onClick={handleSaveEdit}
-              disabled={isLoading}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Save Changes
-            </Button>
-            <Button
-              onClick={() => {
-                setIsEditing(false)
-                setEditedSubject(target.draft.subject)
-                setEditedBody(target.draft.body)
-              }}
-              disabled={isLoading}
-              variant="outline"
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </div>
-        ) : (
-          <div className="flex gap-3">
-            <Button
-              onClick={handleReject}
-              disabled={isLoading}
-              variant="outline"
-              className="flex-1 bg-transparent border-red-500/30 text-red-400 hover:bg-red-500/10"
-            >
-              <XCircle className="w-4 h-4 mr-2" />
-              Reject
-            </Button>
-            <Button onClick={() => setIsEditing(true)} disabled={isLoading} variant="outline" className="flex-1">
-              <Edit3 className="w-4 h-4 mr-2" />
-              Edit
-            </Button>
-            <Button
-              onClick={handleApprove}
-              disabled={isApprovalDisabled || isLoading}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Approve
-            </Button>
-          </div>
-        )}
+      {/* HIDE ACTION BAR IF SENT OR REPLIED - As per spec "No action buttons" */}
+      {!(isSent || isReply) && (
+        <div className="p-6 bg-gray-950/30">
+          {isFailed ? (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-900/20">
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Retry Send
+              </Button>
+            </div>
+          ) : isEditing ? (
+            <div className="flex gap-3">
+              <Button
+                onClick={handleSaveEdit}
+                disabled={isLoading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Save Changes
+              </Button>
+              <Button
+                onClick={() => {
+                  setIsEditing(false)
+                  setEditedSubject(target.draft.subject)
+                  setEditedBody(target.draft.body)
+                }}
+                disabled={isLoading}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-3">
+              <Button
+                onClick={handleReject}
+                disabled={isLoading || isSending}
+                variant="outline"
+                className="flex-1 bg-transparent border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Reject
+              </Button>
+              <Button onClick={() => setIsEditing(true)} disabled={isLoading || isSending} variant="outline" className="flex-1">
+                <Edit3 className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+              <Button
+                onClick={handleApprove}
+                disabled={isApprovalDisabled || isLoading || isSending}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Approve
+              </Button>
+            </div>
+          )}
 
-        {isApprovalDisabled && (
-          <p className="text-xs text-yellow-500 text-center mt-3">Outreach is paused. Resume to enable approvals.</p>
-        )}
-      </div>
+          {isApprovalDisabled && !isFailed && (
+            <p className="text-xs text-yellow-500 text-center mt-3">Outreach is paused. Resume to enable approvals.</p>
+          )}
+        </div>
+      )}
     </Card>
   )
 }
+
