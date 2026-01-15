@@ -11,6 +11,13 @@ export function useUserRole(): UserRole {
 
   useEffect(() => {
     async function loadUserRole() {
+      // Mock Mode Bypass
+      if (process.env.NODE_ENV === "development") {
+        console.log("[v0] Mock Mode: Defaulting to 'admin' role")
+        setRole("admin")
+        return
+      }
+
       try {
         const {
           data: { user },

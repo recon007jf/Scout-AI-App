@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import { useProfileImage } from "@/lib/hooks/use-profile-image"
 import type { ContactsResponse } from "@/lib/types/api"
+import { getContacts } from "@/lib/api/client"
 
 const ENABLE_LIVE_DATA = true
 
@@ -78,74 +79,31 @@ export function NetworkView() {
   }, [])
 
   const loadContacts = async () => {
-    if (!ENABLE_LIVE_DATA) {
-      console.log("[v0] ENABLE_LIVE_DATA=false, using mock data")
-      setContacts([
-        {
-          id: "mock-1",
-          name: "Mock Contact",
-          title: "VP of Engineering",
-          company: "Mock Corp",
-          email: "mock@example.com",
-          relationship: "active",
-          lastContact: "2025-01-10",
-          engagementScore: 75,
-          tags: ["test"],
-          nextAction: "Follow up on Q1 planning",
-          notes: "This is mock data - ENABLE_LIVE_DATA is false",
-        },
-      ])
-      setDebugInfo("MOCK DATA - ENABLE_LIVE_DATA=false")
-      return
-    }
-
     try {
       setIsLoading(true)
-      setDebugInfo("Loading...")
+      setDebugInfo("Loading contacts via client API...")
 
-      const response = await fetch("/api/scout/contacts?page=1&page_size=25&user_email=admin@pacificaisystems.com", {
-        cache: "no-store",
-      })
+      const data = await getContacts()
 
-      const status = response.status
-      const contentType = response.headers.get("content-type")
-      const bodyText = await response.text()
-
-      const debugSnippet = bodyText.length > 500 ? bodyText.substring(0, 500) + "..." : bodyText
-      setDebugInfo(`API: GET /api/scout/contacts [${status}] ${debugSnippet}`)
-
-      let data: ContactsResponse
-      try {
-        data = JSON.parse(bodyText)
-      } catch (e) {
-        console.error("[v0] Invalid JSON response:", bodyText)
-        setContacts([])
-        return
-      }
-
-      if (data.error || !response.ok) {
-        console.error("[v0] API error:", data.error || `Status ${status}`)
-        setContacts([])
-        return
-      }
-
-      const mappedContacts = data.contacts.map((contact) => ({
+      const mappedContacts = data.map((contact) => ({
         id: contact.id,
-        name: contact.full_name,
-        title: contact.role,
-        company: contact.firm,
-        email: contact.work_email,
-        linkedinUrl: contact.linkedin_url,
-        relationship: (contact.relationship_status as any) || "prospect",
-        lastContact: contact.last_contact ? new Date(contact.last_contact).toLocaleDateString() : "Never",
-        engagementScore: contact.engagement_score || 0,
+        name: contact.name || contact.full_name,
+        title: contact.title || contact.role,
+        company: contact.company || contact.firm,
+        email: contact.email || contact.work_email,
+        linkedinUrl: contact.linkedinUrl || contact.linkedin_url,
+        relationship: (contact.relationship || contact.relationship_status || "prospect") as any,
+        lastContact: contact.lastContact || (contact.last_contact ? new Date(contact.last_contact).toLocaleDateString() : "Never"),
+        engagementScore: contact.engagementScore || contact.engagement_score || 0,
         tags: contact.tags || [],
-        nextAction: "Follow up soon",
-        notes: "Real contact from backend API",
+        nextAction: contact.nextAction || "Follow up soon",
+        notes: contact.notes || "Contact from API",
+        avatarUrl: contact.avatarUrl
       }))
 
       setContacts(mappedContacts)
       console.log("[v0] Loaded contacts:", mappedContacts.length)
+      setDebugInfo(`Loaded ${mappedContacts.length} contacts`)
     } catch (error) {
       console.error("[v0] Failed to load contacts:", error)
       setDebugInfo(`ERROR: ${error instanceof Error ? error.message : String(error)}`)

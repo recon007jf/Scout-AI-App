@@ -90,6 +90,14 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
 }
 
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
+  // MOCK MODE: Bypass Supabase in development to ensure stable UI testing
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Using MOCK DATA for Morning Queue (Dev Mode)")
+    const { mockTargets } = await import("./mock/morning-coffee")
+    // Simulate network delay
+    return new Promise((resolve) => setTimeout(() => resolve(mockTargets), 600))
+  }
+
   const supabase = createBrowserClient()
 
   const { data, error } = await supabase
@@ -111,6 +119,11 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
 }
 
 export async function approveTarget(targetId: string): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Mock Approve Target:", targetId)
+    return new Promise((resolve) => setTimeout(resolve, 300))
+  }
+
   const supabase = createBrowserClient()
 
   const { error } = await supabase.from("target_brokers").update({ status: "QUEUED_FOR_SEND" }).eq("id", targetId)
@@ -121,6 +134,11 @@ export async function approveTarget(targetId: string): Promise<void> {
 }
 
 export async function skipTarget(targetId: string): Promise<void> {
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Mock Skip Target:", targetId)
+    return new Promise((resolve) => setTimeout(resolve, 300))
+  }
+
   const supabase = createBrowserClient()
 
   const { error } = await supabase.from("target_brokers").update({ status: "SKIPPED" }).eq("id", targetId)
@@ -131,6 +149,16 @@ export async function skipTarget(targetId: string): Promise<void> {
 }
 
 export async function generateDraftForTarget(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
+  // MOCK MODE
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Mock Generate Draft for:", target.company)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+    return {
+      subject: `[MOCK] Coverage Review for ${target.company}`,
+      body: `Hi ${target.contactName.split(" ")[0]},\n\nThis is a mock draft generated locally for testing purposes.\n\nWe noticed some interesting activity at ${target.company} that aligns with our risk models.\n\nBest,\nAndrew`,
+    }
+  }
+
   const dossier_id = target.id
 
   if (!dossier_id) {
@@ -271,6 +299,16 @@ export async function regenerateDraftWithFeedback(
   currentDraft: { subject: string; body: string },
   comments: string,
 ): Promise<{ subject: string; body: string }> {
+  // MOCK MODE
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Mock Regenerate with Feedback:", comments)
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    return {
+      subject: `[UPDATED] ${currentDraft.subject}`,
+      body: `Hi ${target.contactName.split(" ")[0]},\n\n(Updated based on feedback: "${comments}")\n\nHere is the revised draft incorporating your specific notes regarding ${target.company}.\n\nBest,\nAndrew`,
+    }
+  }
+
   const dossier_id = target.id
 
   if (!dossier_id) {
@@ -340,6 +378,16 @@ export async function regenerateDraftWithFeedback(
 }
 
 export async function regenerateDraft(target: MorningQueueTarget): Promise<{ subject: string; body: string }> {
+  // MOCK MODE
+  if (process.env.NODE_ENV === "development") {
+    console.log("[v0] Mock Regenerate Draft")
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+    return {
+      subject: `[REGENERATED] Fresh Perspective for ${target.company}`,
+      body: `Hi ${target.contactName.split(" ")[0]},\n\nI'm reaching out with a completely fresh perspective on ${target.company}'s risk profile.\n\nOur AI has identified new patterns that suggest an immediate conversation is warranted.\n\nBest,\nAndrew`,
+    }
+  }
+
   const dossier_id = target.id
 
   if (!dossier_id) {

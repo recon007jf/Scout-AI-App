@@ -40,11 +40,24 @@ export function NotesView() {
 
   useEffect(() => {
     const loadNotes = async () => {
+      // Direct Mock Mode Check - Silences console errors in dev
+      if (process.env.NODE_ENV === "development") {
+        try {
+          const { mockNotes } = await import("@/lib/api/mock/notes")
+          setNotes(mockNotes)
+        } catch (error) {
+          console.error("[v0] Failed to load mock notes:", error)
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+
       try {
         const response = await fetch("/api/scout/notes")
 
         if (!response.ok) {
-          throw new Error("API failed, falling back to mock data")
+          throw new Error("API failed")
         }
 
         const data = await response.json()
@@ -52,14 +65,12 @@ export function NotesView() {
         if (data.notes && data.notes.length > 0) {
           setNotes(data.notes)
         } else {
-          const { mockNotes } = await import("@/lib/api/mock/notes")
-          setNotes(mockNotes)
+          // Fallback if API returns empty structure usage
+          setNotes([])
         }
         setLoading(false)
       } catch (error) {
-        console.error("[v0] Failed to load notes, using mock data:", error)
-        const { mockNotes } = await import("@/lib/api/mock/notes")
-        setNotes(mockNotes)
+        console.error("[v0] Failed to load notes:", error)
         setLoading(false)
       }
     }
@@ -119,25 +130,38 @@ export function NotesView() {
     try {
       const dossierId = selectedDossierId || "placeholder-dossier-id"
 
-      const response = await fetch("/api/scout/notes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dossier_id: dossierId,
-          content: newNoteContent,
-          note_type: noteType,
-          tags: noteTags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-        }),
-      })
+      let savedNote: any
 
-      if (!response.ok) {
-        throw new Error("Failed to save note")
+      if (process.env.NODE_ENV === "development") {
+        console.log("[v0] Mock Mode: Saving note locally")
+        await new Promise(resolve => setTimeout(resolve, 500))
+        savedNote = {
+          note_id: `mock_note_${Date.now()}`,
+          content: newNoteContent,
+          created_at: new Date().toISOString()
+        }
+      } else {
+        const response = await fetch("/api/scout/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dossier_id: dossierId,
+            content: newNoteContent,
+            note_type: noteType,
+            tags: noteTags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean),
+          }),
+        })
+
+        if (!response.ok) {
+          throw new Error("Failed to save note")
+        }
+
+        savedNote = await response.json()
       }
 
-      const savedNote = await response.json()
       console.log("[v0] Note saved:", savedNote)
 
       const newNote: Note = {

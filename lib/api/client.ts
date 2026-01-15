@@ -18,12 +18,18 @@ import type {
   User,
 } from "@/lib/types"
 
+import type { ContactsResponse } from "@/lib/types/api"
+
 function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-283427197752.us-central1.run.app"
 }
 
 function shouldUseMocks(): boolean {
-  return process.env.NEXT_PUBLIC_USE_MOCKS === "true" || !process.env.NEXT_PUBLIC_API_URL
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
+    !process.env.NEXT_PUBLIC_API_URL
+  )
 }
 
 // ============================================================================
@@ -70,7 +76,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 export async function getMorningCoffeeQueue(): Promise<Target[]> {
   if (shouldUseMocks()) {
     const { mockTargets } = await import("./mock/morning-coffee")
-    return new Promise((resolve) => setTimeout(() => resolve(mockTargets), 500))
+    return new Promise((resolve) => setTimeout(() => resolve(mockTargets as unknown as Target[]), 500))
   }
 
   return apiRequest<Target[]>("/api/morning-coffee/queue")
@@ -596,3 +602,25 @@ export async function getCurrentUser(): Promise<User | null> {
     return null
   }
 }
+
+// ============================================================================
+// Network / Contacts Actions
+// ============================================================================
+
+/**
+ * Fetches user's contacts
+ * Endpoint: GET /api/scout/contacts
+ */
+export async function getContacts(): Promise<any[]> {
+  if (shouldUseMocks()) {
+    const { mockContacts } = await import("./mock/network")
+    return new Promise((resolve) => setTimeout(() => resolve(mockContacts), 600))
+  }
+
+  const response = await apiRequest<ContactsResponse>("/api/scout/contacts?page=1&page_size=25", {
+    method: "GET",
+  })
+
+  return response.contacts
+}
+

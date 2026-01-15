@@ -120,6 +120,27 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [isCheckingStatus, setIsCheckingStatus] = useState(true)
   const [selectedPauseDuration, setSelectedPauseDuration] = useState<string>("manual")
   const [draftCache, setDraftCache] = useState<Record<string, { subject: string; body: string }>>({})
+  async function checkExistingDraft(targetId: string): Promise<{ llm_email_subject?: string; llm_email_body?: string }> {
+    if (process.env.NODE_ENV === "development") return {}
+
+    const supabase = createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    )
+
+    const { data, error } = await supabase
+      .from("target_brokers")
+      .select("llm_email_subject, llm_email_body")
+      .eq("id", targetId)
+      .single()
+
+    if (error) {
+      console.error("[v0] Failed to check existing draft:", error)
+      return {}
+    }
+
+    return data || {}
+  }
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false)
   const [showCommentDialog, setShowCommentDialog] = useState(false) // Added for the comment dialog state
   const [draftError, setDraftError] = useState<string | null>(null) // Adding state for API error messages
@@ -153,6 +174,21 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
       // Load from database
       console.log("[v0] Loading draft from database for:", dossier_id)
+
+      // MOCK MODE: Bypass Supabase
+      if (process.env.NODE_ENV === "development") {
+        console.log("[v0] Mock Mode: Using embedded draft from target object")
+        if (selectedTarget.draft) {
+          setDraftCache((prev) => ({
+            ...prev,
+            [dossier_id]: selectedTarget.draft!,
+          }))
+          setEditedSubject(selectedTarget.draft.subject)
+          setEditedBody(selectedTarget.draft.body)
+        }
+        return
+      }
+
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -199,6 +235,19 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       if (!activeTargets || activeTargets.length === 0) return
 
       console.log("[v0] Loading drafts for", activeTargets.length, "targets")
+
+      // MOCK MODE: Bypass Supabase
+      if (process.env.NODE_ENV === "development") {
+        console.log("[v0] Mock Mode: Pre-loading embedded drafts into cache")
+        const newCache: Record<string, { subject: string; body: string }> = {}
+        activeTargets.forEach((t) => {
+          if (t.draft) {
+            newCache[t.id] = t.draft
+          }
+        })
+        setDraftCache((prev) => ({ ...prev, ...newCache }))
+        return
+      }
 
       const supabase = createBrowserClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

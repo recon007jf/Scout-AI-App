@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { TrendingUp, Building2, Linkedin, Mail, Calendar, Briefcase, Users, Award, ChevronRight } from "lucide-react"
+import { getSignals, markSignalRead, generateSignalReply, convertSignalToTarget } from "@/lib/api/client"
 
 interface Signal {
   id: string
@@ -68,25 +69,25 @@ export function SignalsView() {
   const loadSignals = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch("/api/scout/signals")
-      const data = await response.json()
+      // Use client function which handles mocking
+      const signalsData = await getSignals()
 
-      const mappedSignals = data.signals.map((signal: any) => ({
+      const mappedSignals = signalsData.map((signal: any) => ({
         id: signal.id,
         type: signal.type.replace("_", "-") as Signal["type"],
         priority: signal.priority,
-        timestamp: new Date(signal.timestamp).toLocaleString(),
+        timestamp: new Date().toLocaleDateString(), // Mock time for now or parse existing
         contact: {
-          name: signal.contact.full_name,
-          title: signal.contact.role,
-          company: signal.contact.firm,
-          avatarUrl: undefined,
+          name: signal.contact.name, // Matched to mock structure
+          title: signal.contact.title,
+          company: signal.contact.company,
+          avatarUrl: signal.contact.avatarUrl,
         },
-        summary: signal.title,
+        summary: signal.summary,
         details: signal.details,
         actionable: signal.actionable,
-        signalStrength: signal.priority_score,
-        isRead: false,
+        signalStrength: signal.signalStrength,
+        isRead: signal.isRead || false,
       }))
 
       setSignals(mappedSignals)
@@ -101,15 +102,15 @@ export function SignalsView() {
     setSelectedSignal(signal)
 
     if (!signal.isRead) {
+      // Optimistic update
       setSignals(signals.map((s) => (s.id === signal.id ? { ...s, isRead: true } : s)))
 
       try {
-        await fetch(`/api/scout/mark-signal-read?id=${signal.id}`, {
-          method: "POST",
-        })
+        await markSignalRead(signal.id)
         console.log("[v0] Signal marked as read:", signal.id)
       } catch (error) {
         console.error("[v0] Failed to mark signal as read:", error)
+        // Revert on failure
         setSignals(signals.map((s) => (s.id === signal.id ? { ...s, isRead: false } : s)))
       }
     }
@@ -120,14 +121,12 @@ export function SignalsView() {
 
     setIsGeneratingReply(true)
     try {
-      const response = await fetch(`/api/scout/generate-reply?id=${selectedSignal.id}`, {
-        method: "POST",
-      })
-      const { subject, body } = await response.json()
+      const { subject, body } = await generateSignalReply(selectedSignal.id)
       console.log("[v0] Reply generated successfully:", { subject, body })
       alert(`Draft Reply Generated!\n\nSubject: ${subject}\n\n${body}`)
     } catch (error) {
       console.error("[v0] Failed to generate reply:", error)
+      alert("Failed to generate reply")
     } finally {
       setIsGeneratingReply(false)
     }
@@ -137,16 +136,14 @@ export function SignalsView() {
     if (!selectedSignal) return
 
     try {
-      const response = await fetch(`/api/scout/convert-to-target?id=${selectedSignal.id}`, {
-        method: "POST",
-      })
-      const { success, targetId } = await response.json()
+      const { success, targetId } = await convertSignalToTarget(selectedSignal.id)
       if (success) {
         console.log("[v0] Signal converted to target:", targetId)
         alert("Added to Morning Briefing queue!")
       }
     } catch (error) {
       console.error("[v0] Failed to convert signal to target:", error)
+      alert("Failed to convert signal")
     }
   }
 
@@ -245,11 +242,10 @@ export function SignalsView() {
               return (
                 <Card
                   key={signal.id}
-                  className={`p-2.5 cursor-pointer transition-colors ${
-                    selectedSignal?.id === signal.id
-                      ? "border-primary bg-primary/5"
-                      : "hover:border-border hover:bg-card/80"
-                  }`}
+                  className={`p-2.5 cursor-pointer transition-colors ${selectedSignal?.id === signal.id
+                    ? "border-primary bg-primary/5"
+                    : "hover:border-border hover:bg-card/80"
+                    }`}
                   onClick={() => handleSelectSignal(signal)}
                 >
                   <div className="flex items-center gap-2 mb-2">
