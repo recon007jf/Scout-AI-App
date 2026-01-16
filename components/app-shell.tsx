@@ -200,7 +200,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
                       alt={item.label}
                     />
                     {item.id === "calendar" && (
-                      <div className="absolute top-[58%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-bold text-foreground pointer-events-none leading-none">
+                      <div className="absolute top-[55%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-base font-bold text-foreground pointer-events-none leading-none">
                         {currentDay}
                       </div>
                     )}
