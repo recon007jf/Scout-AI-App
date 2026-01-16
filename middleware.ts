@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
     "/signup(.*)",
     "/auth(.*)",
     "/api/scout/outlook(.*)",
+    "/api/outlook(.*)",
     "/health(.*)",
 ])
 
