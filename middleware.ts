@@ -8,7 +8,7 @@ const isPublicRoute = createRouteMatcher([
     "/login(.*)",
     "/signup(.*)",
     "/auth(.*)",
-    "/api/scout/outlook/test(.*)",
+    "/api/scout/outlook(.*)",
     "/health(.*)",
 ])
 
@@ -16,6 +16,11 @@ export default clerkMiddleware(async (auth, req) => {
     if (process.env.NODE_ENV === "development") {
         return NextResponse.next()
     }
+
+    if (isPublicRoute(req)) {
+        return NextResponse.next()
+    }
+
     await auth.protect()
 })
 

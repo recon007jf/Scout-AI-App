@@ -10,8 +10,8 @@ import { ContactNotes } from "@/components/contact-notes"
 import { toast } from "@/components/ui/use-toast"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2 } from "lucide-react"
 import {
+  Loader2,
   Building2,
   CheckCircle2,
   X,
@@ -29,6 +29,7 @@ import {
   Pencil,
   Check,
   MessageSquare,
+  Reply,
 } from "lucide-react"
 import {
   approveTarget,
@@ -656,7 +657,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     // Better: Pick the first target in `activeTargets` that is NOT the current one and is UNSENT.
     // If all are sent, pick first sent.
 
-    const nextUnsent = activeTargets.find(t => t.id !== currentTargetId && !['sent', 'sending', 'failed'].includes(t.status || ''))
+    const nextUnsent = activeTargets.find(t => t.id !== currentTargetId && !['sent', 'sending', 'failed', 'replied', 'ooo', 'bounced'].includes(t.status || ''))
     if (nextUnsent) {
       setSelectedTarget(nextUnsent)
     } else {
@@ -694,8 +695,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
   // Sorting Logic: Unsent First, Processed Last
   const activeTargets = targets.filter((target) => !dismissedTargets.has(target.id)).sort((a, b) => {
-    const isProcessedA = ['sent', 'sending', 'failed', 'replied'].includes(a.status || '')
-    const isProcessedB = ['sent', 'sending', 'failed', 'replied'].includes(b.status || '')
+    const isProcessedA = ['sent', 'sending', 'failed', 'replied', 'ooo', 'bounced'].includes(a.status || '')
+    const isProcessedB = ['sent', 'sending', 'failed', 'replied', 'ooo', 'bounced'].includes(b.status || '')
 
     if (isProcessedA === isProcessedB) return 0 // Maintain original order
     return isProcessedA ? 1 : -1 // Move processed to bottom
@@ -784,10 +785,20 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
               const isSent = status === "sent"
               const isFailed = status === "failed"
               const isReplied = status === "replied"
+              const isOOO = status === "ooo"
+              const isBounced = status === "bounced"
 
               // Opacity & Overlay styles
-              const cardOpacity = isSending ? "opacity-75" : (isSent || isReplied) ? "opacity-60" : isFailed ? "opacity-80" : "opacity-100"
-              const textColor = (isSent || isReplied) ? "text-muted-foreground" : "text-foreground"
+              // Contract: Sent/Replied/OOO/Bounced = 60%, Failed = 80%, Candidate = 100%, Sending = 75%
+              const cardOpacity = isSending
+                ? "opacity-75"
+                : (isSent || isReplied || isOOO || isBounced)
+                  ? "opacity-60"
+                  : isFailed
+                    ? "opacity-80"
+                    : "opacity-100"
+
+              const textColor = (isSent || isReplied || isOOO || isBounced) ? "text-muted-foreground" : "text-foreground"
 
               return (
                 <Card
@@ -798,7 +809,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                       ? "border-blue-500 bg-blue-500/5 ring-1 ring-blue-500/20"
                       : "border-border hover:border-blue-500/50 hover:bg-accent/50",
                     cardOpacity,
-                    isFailed && "border-l-2 border-l-red-500"
+                    // Contract: Failed border must be border-l-4
+                    isFailed && "border-l-4 border-l-destructive"
                   )}
                   onClick={() => handleSelectTarget(target)}
                 >
@@ -821,14 +833,37 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           <p className={cn("text-sm truncate", textColor || "text-muted-foreground")}>{target.title}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* STATES BADGES */}
+                          {/* STATES BADGES - MUTUALLY EXCLUSIVE */}
+                          {/* Contract: One badge at a time for processed states */}
+
                           {isSent && (
-                            <Badge variant="outline" className="bg-green-900/30 text-green-500 border-none text-xs px-2 py-0.5">
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs px-2 py-0.5">
                               Sent
                             </Badge>
                           )}
+
+                          {isReplied && (
+                            <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-xs px-2 py-0.5 gap-1">
+                              <Reply className="w-3 h-3" />
+                              Replied
+                            </Badge>
+                          )}
+
+                          {isOOO && (
+                            <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs px-2 py-0.5">
+                              OOO
+                            </Badge>
+                          )}
+
+                          {isBounced && (
+                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs px-2 py-0.5 gap-1">
+                              <AlertCircle className="w-3 h-3" />
+                              Bounced
+                            </Badge>
+                          )}
+
                           {isFailed && (
-                            <Badge variant="outline" className="bg-red-900/30 text-red-500 border-none text-xs px-2 py-0.5">
+                            <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/20 text-xs px-2 py-0.5">
                               Failed
                             </Badge>
                           )}
@@ -844,8 +879,8 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                             </Badge>
                           )}
 
-                          {/* Only show confidence if not sent/failed */}
-                          {!isSent && !isFailed && !isReplied && (
+                          {/* Only show confidence if not processed/failed */}
+                          {!isSent && !isFailed && !isReplied && !isOOO && !isBounced && (
                             <div className="flex items-center gap-1 text-sm">
                               <TrendingUp className="h-4 w-4 text-green-500" />
                               <span className="font-medium text-foreground">{target.confidence}%</span>

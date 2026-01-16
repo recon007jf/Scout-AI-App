@@ -51,7 +51,7 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
     name: raw?.full_name || "",
     company: raw?.firm || "",
     title: raw?.role || "",
-    status: raw?.status || "PENDING",
+    status: raw?.status || "pending",
     created_at: raw?.created_at || new Date().toISOString(),
     work_email: raw?.work_email || undefined,
     linkedinUrl: raw?.linkedin_url || "",
@@ -103,9 +103,9 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   const { data, error } = await supabase
     .from("target_brokers")
     .select("*")
-    .in("status", ["ENRICHED", "DRAFT_READY"])
+    .in("status", ["ENRICHED", "DRAFT_READY", "SENT", "FAILED", "REPLIED", "OOO", "BOUNCED"])
     .order("created_at", { ascending: true })
-    .limit(10)
+    .limit(50) // Increased limit to see history
 
   if (error) {
     throw new Error(`Failed to fetch morning queue: ${error.message}`)
