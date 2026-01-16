@@ -30,11 +30,12 @@ import { SettingsView } from "@/components/views/settings-view"
 import { Menu } from "lucide-react" // Fixed import to use lucide-react
 
 interface AppShellProps {
-  children: React.ReactNode
+  children?: React.ReactNode
+  initialView?: string
 }
 
-export function AppShell({ children }: AppShellProps) {
-  const [activeView, setActiveView] = useState<string>("morning")
+export function AppShell({ children, initialView = "morning" }: AppShellProps) {
+  const [activeView, setActiveView] = useState<string>(initialView)
   const [user, setUser] = useState<{ email: string; name: string; role?: string } | null>(null)
   const [currentDay, setCurrentDay] = useState<number>(new Date().getDate())
   const [settingsTab, setSettingsTab] = useState<string | undefined>(undefined)
