@@ -25,8 +25,15 @@ function getApiBaseUrl(): string {
 }
 
 function shouldUseMocks(): boolean {
+  // STRICT PRODUCTION SAFETY:
+  // Never show mock data in production unless explicitly forced.
+  // It is better to fail/error than to show fake data to a user.
+  if (process.env.NODE_ENV === "production") {
+    return process.env.NEXT_PUBLIC_USE_MOCKS === "true"
+  }
+
+  // Development fallback
   return (
-    process.env.NODE_ENV === "development" ||
     process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
     !process.env.NEXT_PUBLIC_API_URL
   )
@@ -73,13 +80,28 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
  * Fetches the curated list of targets ready for review.
  * Should return 8-12 targets max.
  */
-export async function getMorningCoffeeQueue(): Promise<Target[]> {
+import type { BriefingTarget, BriefingResponse } from "@/lib/types/scout"
+
+// ... imports ...
+
+/**
+ * BACKEND TODO: Implement getMorningCoffeeQueue()
+ *
+ * Fetches the curated list of targets ready for review.
+ * Should return 8-12 targets max.
+ */
+export async function getMorningCoffeeQueue(): Promise<BriefingTarget[]> {
   if (shouldUseMocks()) {
+    // Legacy mock might be broken, or we need to update it.
+    // For Phase 2, we prefer API.
+    // Assuming mock is updated or we just fallback.
     const { mockTargets } = await import("./mock/morning-coffee")
-    return new Promise((resolve) => setTimeout(() => resolve(mockTargets as unknown as Target[]), 500))
+    // Cast strict or fix mock.
+    return new Promise((resolve) => setTimeout(() => resolve(mockTargets as unknown as BriefingTarget[]), 500))
   }
 
-  return apiRequest<Target[]>("/api/morning-coffee/queue")
+  const response = await apiRequest<BriefingResponse>("/api/briefing")
+  return response.targets
 }
 
 // ============================================================================

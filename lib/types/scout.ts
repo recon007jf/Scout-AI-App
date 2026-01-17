@@ -37,6 +37,7 @@ export interface BriefingTarget {
     phone: string
     linkedIn: string
     avatar: string
+    imageUrl?: string | null // Phase 2: Live LinkedIn Image
   }
   sponsor: {
     name: string

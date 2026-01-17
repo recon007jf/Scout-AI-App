@@ -141,7 +141,10 @@ export function BriefingTargetCard({
 
         <div className="flex items-start gap-4">
           <Avatar className="w-16 h-16">
-            <AvatarImage src={target.broker.avatar || "/placeholder.svg"} alt={target.broker.name} />
+            <AvatarImage
+              src={target.broker.imageUrl || target.broker.avatar}
+              alt={target.broker.name}
+            />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-lg">
               {getInitials(target.broker.name)}
             </AvatarFallback>
