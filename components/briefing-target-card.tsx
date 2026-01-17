@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle2, XCircle, Edit3, AlertCircle, Sparkles, Building2, Users, MapPin, TrendingUp, Loader2, MessageSquare, Clock, RotateCcw } from "lucide-react"
+import { getProxiedImageUrl } from "@/lib/api/client"
 import type { BriefingTarget } from "@/lib/types/scout"
 
 interface BriefingTargetCardProps {
@@ -142,7 +143,7 @@ export function BriefingTargetCard({
         <div className="flex items-start gap-4">
           <Avatar className="w-16 h-16">
             <AvatarImage
-              src={target.broker.imageUrl || target.broker.avatar}
+              src={getProxiedImageUrl(target.broker.imageUrl || target.broker.avatar)}
               alt={target.broker.name}
             />
             <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-lg">

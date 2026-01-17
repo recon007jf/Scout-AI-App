@@ -20,8 +20,17 @@ import type {
 
 import type { ContactsResponse } from "@/lib/types/api"
 
-function getApiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-283427197752.us-central1.run.app"
+export function getApiBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-prod-736282502750.us-central1.run.app"
+  // Remove trailing slash if present
+  return url.replace(/\/$/, "")
+}
+
+export function getProxiedImageUrl(originalUrl: string | null | undefined): string | undefined {
+  if (!originalUrl) return undefined
+  if (originalUrl.startsWith("data:") || originalUrl.startsWith("/")) return originalUrl
+
+  return `${getApiBaseUrl()}/api/image-proxy?url=${encodeURIComponent(originalUrl)}`
 }
 
 function shouldUseMocks(): boolean {
