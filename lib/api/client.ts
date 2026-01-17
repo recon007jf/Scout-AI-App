@@ -25,11 +25,12 @@ function getApiBaseUrl(): string {
 }
 
 function shouldUseMocks(): boolean {
-  // STRICT PRODUCTION SAFETY:
-  // Never show mock data in production unless explicitly forced.
-  // It is better to fail/error than to show fake data to a user.
+  // STRICT PRODUCTION SAFETY (P0 Directive Jan 17):
+  // Mock data is FORBIDDEN in Production.
+  // NO exceptions. NO overrides.
+  // If backend fails, the app MUST error.
   if (process.env.NODE_ENV === "production") {
-    return process.env.NEXT_PUBLIC_USE_MOCKS === "true"
+    return false
   }
 
   // Development fallback
