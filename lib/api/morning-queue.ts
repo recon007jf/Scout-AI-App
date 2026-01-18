@@ -158,18 +158,25 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   let visibleActive: MorningQueueTarget[] = []
 
   // Iterate through chunks of 10
+  // Iterate through chunks of 10 to find the "Current active batch"
   for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
-    const batch = eligible.slice(i, i + BATCH_SIZE)
-    const unsentInBatch = batch.filter((t: any) => !SENT_STATUSES.includes(t.status))
+    const currentBatch = eligible.slice(i, i + BATCH_SIZE)
+    const hasUnsent = currentBatch.some((t: any) => !SENT_STATUSES.includes(t.status))
 
-    // If this batch has ANY unsent items, this is our "Current Batch".
-    // We show ONLY these unsent items. We do NOT look ahead to the next batch.
-    if (unsentInBatch.length > 0) {
-      visibleActive = unsentInBatch
-      console.log(`[Queue] Locked to Batch ${i / BATCH_SIZE + 1}. Remaining: ${visibleActive.length}`)
-      break
+    // If this batch has work remaining (or is the last available batch), it is the "Current Batch"
+    // We show this batch AND the one immediately before it (the buffer).
+    if (hasUnsent || i + BATCH_SIZE >= eligible.length) {
+
+      // Get the Immediately Preceding Batch (if it exists)
+      // This satisfies "Batch 2 Loaded: 10 Active / 10 Sent (Total 20)"
+      const startOfPrevious = Math.max(0, i - BATCH_SIZE)
+      const previousBatch = (i > 0) ? eligible.slice(startOfPrevious, i) : []
+
+      const visibleSet = [...previousBatch, ...currentBatch]
+
+      console.log(`[Queue] Locked to Batch ${i / BATCH_SIZE + 1}. Visible: ${visibleSet.length} (Prev: ${previousBatch.length}, Curr: ${currentBatch.length})`)
+      return visibleSet
     }
-    // If this batch is fully sent, we loop to the next batch (effectively "turning the page")
   }
 
   console.log(`[Queue] History: ${historyItems.length}, Active (Count): ${visibleActive.length}`)
