@@ -933,15 +933,31 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                           <Mail className="w-4 h-4" />
                           Email
                         </a>
-                        <a
-                          href={selectedTarget.linkedinUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-primary hover:underline"
-                        >
-                          <Linkedin className="w-4 h-4" />
-                          LinkedIn
-                        </a>
+                        {(() => {
+                          const rawUrl = selectedTarget.linkedinUrl
+                          if (!rawUrl) {
+                            return (
+                              <span className="flex items-center gap-1.5 text-muted-foreground cursor-not-allowed opacity-70">
+                                <Linkedin className="w-4 h-4" />
+                                <span className="text-xs">(No LinkedIn Available)</span>
+                              </span>
+                            )
+                          }
+
+                          const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`
+
+                          return (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-primary hover:underline"
+                            >
+                              <Linkedin className="w-4 h-4" />
+                              LinkedIn
+                            </a>
+                          )
+                        })()}
                       </div>
                     </div>
                     <Badge variant="secondary" className="gap-2">
