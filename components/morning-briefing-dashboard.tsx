@@ -1049,18 +1049,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                 <TabsContent value="draft" className="space-y-4 mt-4">
                   <Card className="p-6">
-                                variant: "destructive",
-                              })
-                            } finally {
-                              setIsGeneratingDraft(false)
-                            }
-                          }}
-                        >
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Generate Draft
-                        </Button>
-                      </div>
-                    )}
+
 
                     {isGeneratingDraft && (
                       <div className="flex items-center justify-center py-12">
@@ -1341,39 +1330,39 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         />
       </div >
 
-    {/* Comment Dialog */ }
-  {
-    showCommentDialog && (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <Card className="w-[500px] p-6">
-          <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
-          <Textarea
-            value={regenerateComments}
-            onChange={(e) => setRegenerateComments(e.target.value)}
-            placeholder="Tell the AI what to change or improve..."
-            className="min-h-[120px] mb-4"
-          />
-          <div className="flex gap-2">
-            <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
-              {isGeneratingDraft ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="mr-2 h-4 w-4" />
-              )}
-              Regenerate
-            </Button>
-            <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
-              Cancel
-            </Button>
+      {/* Comment Dialog */}
+      {
+        showCommentDialog && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <Card className="w-[500px] p-6">
+              <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
+              <Textarea
+                value={regenerateComments}
+                onChange={(e) => setRegenerateComments(e.target.value)}
+                placeholder="Tell the AI what to change or improve..."
+                className="min-h-[120px] mb-4"
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
+                  {isGeneratingDraft ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-2 h-4 w-4" />
+                  )}
+                  Regenerate
+                </Button>
+                <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
-    )
-  }
+        )
+      }
 
-  <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-    Build: v249 | Time: {new Date().toISOString()} | Backend: ...7752
-  </div>
+      <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+        Build: v249 | Time: {new Date().toISOString()} | Backend: ...7752
+      </div>
     </div >
   )
 }
