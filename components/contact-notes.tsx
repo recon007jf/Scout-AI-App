@@ -23,15 +23,7 @@ interface ContactNotesProps {
 }
 
 export function ContactNotes({ contactName, contactId, compact = false }: ContactNotesProps) {
-  const [notes, setNotes] = useState<ContactNote[]>([
-    {
-      id: "1",
-      content: "Mentioned interest in expanding cyber coverage during last call",
-      date: "2025-01-02T10:30:00",
-      type: "quick",
-      tags: ["cyber-insurance", "opportunity"],
-    },
-  ])
+  const [notes, setNotes] = useState<ContactNote[]>([])
   const [isAdding, setIsAdding] = useState(false)
   const [newNote, setNewNote] = useState("")
   const [noteType, setNoteType] = useState<"quick" | "voice">("quick")
