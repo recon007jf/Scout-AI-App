@@ -142,20 +142,37 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   })
 
 
-  // --- QUEUE FLOW LOGIC (10 Active Rule) ---
-  // User Requirement: "Visible queue there are 10 never less than 10 (unsent)..."
-  // We separate Sent vs Unsent to enforce the limit on Unsent only.
+  // --- QUEUE FLOW LOGIC (Batch Clearing Rule) ---
+  // User Requirement: "No more candidates come in... until all 10 are marked as sent"
+  // Logic: Divide into batches of 10. Show only the CURRENT batch until it's exhausted.
 
   const SENT_STATUSES = ["SENT", "QUEUED_FOR_SEND", "REPLIED", "OOO", "BOUNCED", "SKIPPED"]
 
+  // 1. Separate History (Always show Sent items for context)
   const historyItems = eligible.filter((t: any) => SENT_STATUSES.includes(t.status))
-  const activeItems = eligible.filter((t: any) => !SENT_STATUSES.includes(t.status))
 
-  // Slice Active items to exactly 10 (The "Next 10" Logic)
-  // If we have 13 active, we show 10. The other 3 wait for a "refill" (refresh).
-  const visibleActive = activeItems.slice(0, 10)
+  // 2. Determine Current Batch from ALL eligible items (to maintain stable ordering)
+  // We cannot just look at 'activeItems' because that loses the concept of "Batch 1 vs Batch 2".
+  // We must look at the ORIGINAL list order.
+  const BATCH_SIZE = 10
+  let visibleActive: MorningQueueTarget[] = []
 
-  console.log(`[Queue] History: ${historyItems.length}, Active (Total): ${activeItems.length}, Active (Shown): ${visibleActive.length}`)
+  // Iterate through chunks of 10
+  for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+    const batch = eligible.slice(i, i + BATCH_SIZE)
+    const unsentInBatch = batch.filter((t: any) => !SENT_STATUSES.includes(t.status))
+
+    // If this batch has ANY unsent items, this is our "Current Batch".
+    // We show ONLY these unsent items. We do NOT look ahead to the next batch.
+    if (unsentInBatch.length > 0) {
+      visibleActive = unsentInBatch
+      console.log(`[Queue] Locked to Batch ${i / BATCH_SIZE + 1}. Remaining: ${visibleActive.length}`)
+      break
+    }
+    // If this batch is fully sent, we loop to the next batch (effectively "turning the page")
+  }
+
+  console.log(`[Queue] History: ${historyItems.length}, Active (Count): ${visibleActive.length}`)
 
   return [...historyItems, ...visibleActive]
 }
