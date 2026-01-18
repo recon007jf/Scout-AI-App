@@ -115,7 +115,34 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     return []
   }
 
-  return data.map(normalizeTarget)
+  // --- HARD GATE ENFORCEMENT ---
+  // https://github.com/StartUp-Inc/Scout/issues/CONTRACT-001
+  // We filter out any target that violates the P0 "Morning Briefing Contract".
+  const normalized = data.map(normalizeTarget)
+
+  const eligible = normalized.filter(t => {
+    // 1. Identity
+    if (!t.name || !t.work_email || !t.linkedinUrl) {
+      console.log(`[Queue] 🚫 Dropped ${t.name} (Missing Identity)`)
+      return false
+    }
+    // 2. Context
+    if (!t.company || !t.title) {
+      console.log(`[Queue] 🚫 Dropped ${t.name} (Missing Context)`)
+      return false
+    }
+    // 6. Draft Readiness (Zero-Latency Rule)
+    if (!t.draft?.subject || !t.draft?.body) {
+      console.log(`[Queue] 🚫 Dropped ${t.name} (Not Draft Ready)`)
+      // NOTE: We could auto-trigger generation here if we wanted, but for now we block.
+      return false
+    }
+
+    return true
+  })
+
+  console.log(`[Queue] ✅ Returning ${eligible.length} / ${data.length} eligible targets.`)
+  return eligible
 }
 
 export async function approveTarget(targetId: string): Promise<void> {
