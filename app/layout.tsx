@@ -5,6 +5,8 @@ import { Analytics } from "@vercel/analytics/next"
 import { ClerkProvider } from "@clerk/nextjs"
 import { dark } from "@clerk/themes"
 import "./globals.css"
+import { Footer } from "@/components/footer"
+import { VersionGate } from "@/components/version-gate"
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -45,11 +47,10 @@ export default function RootLayout({
     >
       <html lang="en" className="dark">
         <body className={`font-sans antialiased`}>
+          <VersionGate />
           {children}
           <Analytics />
-          <div className="fixed bottom-0 w-full text-xs text-gray-500 text-center py-1 pointer-events-none z-50">
-            Scout UI — Deployed by AG — Build Sentinel v2
-          </div>
+          <Footer />
         </body>
       </html>
     </ClerkProvider>
