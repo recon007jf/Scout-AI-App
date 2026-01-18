@@ -15,11 +15,6 @@ export async function getAuthenticatedClient() {
   console.log("[v0] Credential string length:", credentials.length)
   console.log("[v0] First 50 chars:", credentials.substring(0, 50))
 
-  // Try using GoogleAuth's fromJSON which handles key parsing internally
-  const auth = new GoogleAuth({
-    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
-  })
-
   let parsedCredentials
   try {
     parsedCredentials = JSON.parse(credentials)
@@ -31,11 +26,11 @@ export async function getAuthenticatedClient() {
   console.log("[v0] Parsed credential fields:", Object.keys(parsedCredentials))
   console.log("[v0] Client email:", parsedCredentials.client_email)
 
-  const client = auth.fromJSON(parsedCredentials)
-
-  if (!client) {
-    throw new Error("Failed to create auth client from credentials")
-  }
+  // Pass parsed credentials directly to GoogleAuth
+  const auth = new GoogleAuth({
+    credentials: parsedCredentials,
+    // scopes: ["https://www.googleapis.com/auth/cloud-platform"], // <--- REMOVED: Conflicts with ID Token Audience
+  })
 
   return auth
 }
