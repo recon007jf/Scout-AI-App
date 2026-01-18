@@ -4,7 +4,11 @@ import { auth } from "@clerk/nextjs/server"
 // Force dynamic to prevent caching of proxy requests
 export const dynamic = "force-dynamic"
 
-const BACKEND_URL = process.env.CLOUD_RUN_BACKEND_URL || "https://scout-dashboard-283427197752.us-central1.run.app"
+// Force localhost in development, otherwise use Env Var or Default to Prod
+const IS_DEV = process.env.NODE_ENV === "development"
+const BACKEND_URL = IS_DEV
+    ? "http://127.0.0.1:8000"
+    : (process.env.CLOUD_RUN_BACKEND_URL || "https://scout-dashboard-283427197752.us-central1.run.app")
 
 async function handler(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
     try {

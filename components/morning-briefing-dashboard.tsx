@@ -1047,7 +1047,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="draft" className="space-y-4 mt-4">
+                <TabsContent value="draft" className="space-y-4">
                   <Card className="p-6">
 
 

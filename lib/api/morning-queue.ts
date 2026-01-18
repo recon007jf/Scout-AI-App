@@ -102,9 +102,9 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
 
   const { data, error } = await supabase
     .from("target_brokers")
-    .select("*")
     .in("status", ["ENRICHED", "DRAFT_READY", "SENT", "QUEUED_FOR_SEND", "FAILED", "SKIPPED"])
     .order("created_at", { ascending: true })
+    .order("id", { ascending: true }) // STABLE SORT: Tie-breaker for batch uploads
     .limit(50) // Increased limit to see history
 
   if (error) {
