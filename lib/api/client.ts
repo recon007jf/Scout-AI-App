@@ -21,7 +21,7 @@ import type {
 import type { ContactsResponse } from "@/lib/types/api"
 
 export function getApiBaseUrl(): string {
-  const url = process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-prod-736282502750.us-central1.run.app"
+  const url = process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-prod-283427197752.us-central1.run.app"
   // Remove trailing slash if present
   return url.replace(/\/$/, "")
 }
@@ -34,10 +34,12 @@ export function getProxiedImageUrl(originalUrl: string | null | undefined): stri
 }
 
 function shouldUseMocks(): boolean {
+  // DEBUG OVERRIDE: Always use Real API to verify backend fix
+  console.log("[Client] shouldUseMocks: FORCED FALSE (Debugging)")
+  return false
+
+  /*
   // STRICT PRODUCTION SAFETY (P0 Directive Jan 17):
-  // Mock data is FORBIDDEN in Production.
-  // NO exceptions. NO overrides.
-  // If backend fails, the app MUST error.
   if (process.env.NODE_ENV === "production") {
     return false
   }
@@ -47,6 +49,7 @@ function shouldUseMocks(): boolean {
     process.env.NEXT_PUBLIC_USE_MOCKS === "true" ||
     !process.env.NEXT_PUBLIC_API_URL
   )
+  */
 }
 
 // ============================================================================
@@ -61,6 +64,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
   const response = await fetch(url, {
     ...options,
+    cache: 'no-store', // STRICT: Disable Next.js Data Cache to force fresh fetch
     headers: {
       "Content-Type": "application/json",
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -511,7 +515,7 @@ export async function getOutreachStatus(): Promise<{
     )
   }
 
-  const response = await fetch("/api/scout/outreach/status")
+  const response = await fetch("/api/scout/outreach/status", { cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`Status fetch failed: ${response.statusText}`)
   }

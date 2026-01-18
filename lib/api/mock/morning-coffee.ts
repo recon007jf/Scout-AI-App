@@ -88,7 +88,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/elenarodriguez",
     status: "sent", // Visual test: Sent state
     confidence: 72,
-    profileImage: "",
+    profileImage: "/professional-female-director-business-headshot.jpg",
     contactName: "Elena Rodriguez",
     created_at: new Date(Date.now() - 86400000).toISOString(),
     draft: {
@@ -122,7 +122,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/michaelchang",
     status: "candidate", // Visual test: Candidate state (Recovered)
     confidence: 60,
-    profileImage: "",
+    profileImage: "/professional-business-headshot-asian-male.jpg",
     contactName: "Michael Chang",
     created_at: new Date(Date.now() - 172800000).toISOString(),
     draft: {
@@ -156,7 +156,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/jenniferwu",
     status: "replied", // Visual test: Replied state
     confidence: 99,
-    profileImage: "",
+    profileImage: "/professional-business-headshot-female.jpg",
     contactName: "Jennifer Wu",
     created_at: new Date(Date.now() - 200000).toISOString(),
     draft: {
@@ -190,7 +190,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/marcusreynolds",
     status: "failed", // Visual test: Failed state
     confidence: 45,
-    profileImage: "",
+    profileImage: "/professional-male-executive-vp-risk.jpg",
     contactName: "Marcus Reynolds",
     created_at: new Date(Date.now() - 7200000).toISOString(),
     draft: null,
@@ -219,7 +219,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/alexchen",
     status: "ooo", // Visual test: OOO state
     confidence: 65,
-    profileImage: "",
+    profileImage: "/professional-man-headshot-business-director.jpg",
     contactName: "Alex Chen",
     created_at: new Date(Date.now() - 300000).toISOString(),
     draft: null,
@@ -248,7 +248,7 @@ export const mockTargets: MorningQueueTarget[] = [
     linkedinUrl: "https://linkedin.com/in/neo",
     status: "bounced", // Visual test: Bounced state
     confidence: 10,
-    profileImage: "",
+    profileImage: "/professional-male-executive-business-headshot.jpg",
     contactName: "Thomas Anderson",
     created_at: new Date(Date.now() - 400000).toISOString(),
     draft: null,

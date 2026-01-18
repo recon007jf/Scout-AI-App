@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ContactNotes } from "@/components/contact-notes"
 import { toast } from "@/components/ui/use-toast"
@@ -822,6 +822,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                   <div className="flex items-start gap-3">
                     <Avatar className="w-12 h-12 border-2 border-border">
+                      <AvatarImage src={target.profileImage} />
                       <AvatarFallback className="bg-blue-500 text-white font-semibold">
                         {getInitials(target.name)}
                       </AvatarFallback>
@@ -916,6 +917,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                 <Card className="p-6 bg-card/60">
                   <div className="flex items-start gap-4">
                     <Avatar className="w-16 h-16 border-2 border-border">
+                      <AvatarImage src={selectedTarget.profileImage} />
                       <AvatarFallback className="bg-blue-500 text-white font-semibold text-xl">
                         {getInitials(selectedTarget.contactName || selectedTarget.name)}
                       </AvatarFallback>
