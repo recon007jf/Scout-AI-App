@@ -1049,30 +1049,6 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
 
                 <TabsContent value="draft" className="space-y-4 mt-4">
                   <Card className="p-6">
-                    {!currentDraft && !isGeneratingDraft && (
-                      <div className="flex flex-col items-center justify-center py-12 text-center">
-                        <p className="text-muted-foreground mb-4">No draft available yet.</p>
-                        {draftError && (
-                          <div className="mb-4 p-4 bg-destructive/10 border border-destructive rounded-md text-sm text-destructive max-w-md">
-                            <strong>Error:</strong> {draftError}
-                          </div>
-                        )}
-                        <Button
-                          onClick={async () => {
-                            setIsGeneratingDraft(true)
-                            setDraftError(null) // Clear previous errors
-                            try {
-                              const draft = await generateDraftForTarget(selectedTarget)
-                              setDraftCache((prev) => ({ ...prev, [selectedTarget.id]: draft }))
-                              setEditedSubject(draft.subject) // Update edited state
-                              setEditedBody(draft.body)
-                            } catch (error) {
-                              const errorMessage = error instanceof Error ? error.message : String(error)
-                              console.error("[v0] Draft generation failed:", errorMessage)
-                              setDraftError(errorMessage)
-                              toast({
-                                title: "Generation Failed",
-                                description: errorMessage,
                                 variant: "destructive",
                               })
                             } finally {
@@ -1363,39 +1339,41 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
           onKeepPaused={handleThresholdKeepPaused}
           onResume={handleThresholdResume}
         />
-      </div>
+      </div >
 
-      {/* Comment Dialog */}
-      {showCommentDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="w-[500px] p-6">
-            <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
-            <Textarea
-              value={regenerateComments}
-              onChange={(e) => setRegenerateComments(e.target.value)}
-              placeholder="Tell the AI what to change or improve..."
-              className="min-h-[120px] mb-4"
-            />
-            <div className="flex gap-2">
-              <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
-                {isGeneratingDraft ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                Regenerate
-              </Button>
-              <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
-                Cancel
-              </Button>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-        Build: v249 | Time: {new Date().toISOString()} | Backend: ...7752
+    {/* Comment Dialog */ }
+  {
+    showCommentDialog && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Card className="w-[500px] p-6">
+          <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
+          <Textarea
+            value={regenerateComments}
+            onChange={(e) => setRegenerateComments(e.target.value)}
+            placeholder="Tell the AI what to change or improve..."
+            className="min-h-[120px] mb-4"
+          />
+          <div className="flex gap-2">
+            <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
+              {isGeneratingDraft ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+              )}
+              Regenerate
+            </Button>
+            <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
+              Cancel
+            </Button>
+          </div>
+        </Card>
       </div>
-    </div>
+    )
+  }
+
+  <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
+    Build: v249 | Time: {new Date().toISOString()} | Backend: ...7752
+  </div>
+    </div >
   )
 }
