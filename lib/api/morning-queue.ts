@@ -141,8 +141,23 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     return true
   })
 
-  console.log(`[Queue] ✅ Returning ${eligible.length} / ${data.length} eligible targets.`)
-  return eligible
+
+  // --- QUEUE FLOW LOGIC (10 Active Rule) ---
+  // User Requirement: "Visible queue there are 10 never less than 10 (unsent)..."
+  // We separate Sent vs Unsent to enforce the limit on Unsent only.
+
+  const SENT_STATUSES = ["SENT", "QUEUED_FOR_SEND", "REPLIED", "OOO", "BOUNCED", "SKIPPED"]
+
+  const historyItems = eligible.filter((t: any) => SENT_STATUSES.includes(t.status))
+  const activeItems = eligible.filter((t: any) => !SENT_STATUSES.includes(t.status))
+
+  // Slice Active items to exactly 10 (The "Next 10" Logic)
+  // If we have 13 active, we show 10. The other 3 wait for a "refill" (refresh).
+  const visibleActive = activeItems.slice(0, 10)
+
+  console.log(`[Queue] History: ${historyItems.length}, Active (Total): ${activeItems.length}, Active (Shown): ${visibleActive.length}`)
+
+  return [...historyItems, ...visibleActive]
 }
 
 export async function approveTarget(targetId: string): Promise<void> {
