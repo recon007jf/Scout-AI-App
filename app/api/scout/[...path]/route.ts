@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 const IS_DEV = process.env.NODE_ENV === "development"
 const BACKEND_URL = IS_DEV
     ? "http://127.0.0.1:8000"
-    : (process.env.CLOUD_RUN_BACKEND_URL || "https://scout-dashboard-283427197752.us-central1.run.app")
+    : (process.env.CLOUD_RUN_BACKEND_URL || "https://scout-backend-prod-283427197752.us-central1.run.app")
 
 async function handler(req: NextRequest, props: { params: Promise<{ path: string[] }> }) {
     try {
