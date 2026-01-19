@@ -230,10 +230,10 @@ export async function editDraft(targetId: string, updates: DraftUpdates): Promis
  * Returns polished version with diff.
  */
 export async function magicPolish(targetId: string): Promise<PolishedDraft> {
-  if (shouldUseMocks()) {
-    const { mockPolishedDraft } = await import("./mock/morning-coffee")
-    return new Promise((resolve) => setTimeout(() => resolve(mockPolishedDraft), 3000))
-  }
+  // MOCK MODE: Removed.
+  // if (process.env.NODE_ENV === "development") {
+  //     // return null
+  // }
 
   return apiRequest<PolishedDraft>("/api/drafts/polish", {
     method: "POST",
