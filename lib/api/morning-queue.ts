@@ -97,7 +97,13 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   }
 
   const supabase = createBrowserClient()
-  const today = new Date().toISOString().split("T")[0]
+  // FIX: Use local date to match "Business Day" logic, not UTC (which shifts at 4PM PST)
+  // We want the date relative to the user's browser, or hardcode to PST if we want absolute consistency.
+  // Ideally, backend sets the business date. 
+  // For now, let's just grab the YYYY-MM-DD from the local clock.
+  const localDate = new Date();
+  const offset = localDate.getTimezoneOffset()
+  const today = new Date(localDate.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0]
 
   // 1. Fetch Today's Queue (Sync Source of Truth)
   // We join 'candidates' to get the details.
