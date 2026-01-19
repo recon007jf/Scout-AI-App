@@ -1362,7 +1362,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
       }
 
       <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
-        Build: v250 | Time: {new Date().toISOString()} | Backend: ...7752
+        Build: v251 | Time: {new Date().toISOString()} | Backend: ...7752
       </div>
     </div >
   )
