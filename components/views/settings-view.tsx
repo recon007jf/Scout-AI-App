@@ -137,19 +137,32 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
 
     try {
       const email = "andrew.oram@pointchealth.com"
-      const response = await fetch(`/api/scout/outlook/test?email=${encodeURIComponent(email)}`)
+      const token = localStorage.getItem("scout_auth_token")
+
+      const headers: HeadersInit = {
+        "Content-Type": "application/json"
+      }
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`
+      }
+
+      const response = await fetch(`/api/scout/outlook/test?email=${encodeURIComponent(email)}`, {
+        headers
+      })
       const data = await response.json()
 
-      if (data.success) {
+      if (response.ok && data.success) {
         setOutlookConnected(true)
         setOutlookTestResult("Outlook connection successful!")
       } else {
         setOutlookConnected(false)
-        setOutlookTestResult(`Connection failed: ${data.error}`)
+        // Handle FastAPI 422/403 details or generic errors
+        const errorMsg = data.error || data.detail || (data.user_email ? "Token Refused" : "Unknown Error")
+        setOutlookTestResult(`Connection failed: ${errorMsg}`)
       }
     } catch (error) {
       setOutlookConnected(false)
-      setOutlookTestResult("Network error while testing Outlook")
+      setOutlookTestResult(`Network error while testing Outlook: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsTestingOutlook(false)
     }
@@ -642,8 +655,8 @@ andrew@pointchealth.com`}
               {outlookTestResult && (
                 <div
                   className={`flex flex-col gap-2 p-4 rounded-lg border ${outlookTestResult.includes("success")
-                      ? "bg-green-500/10 border-green-500/20"
-                      : "bg-red-500/10 border-red-500/20"
+                    ? "bg-green-500/10 border-green-500/20"
+                    : "bg-red-500/10 border-red-500/20"
                     }`}
                 >
                   <div className="flex items-center gap-3">
