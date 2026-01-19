@@ -135,16 +135,13 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     const batchNum = item.priority_score
 
     // Normalize using existing helper
+    // Normalize using existing helper
     const target = normalizeTarget(candidate)
 
-      // RE-INJECT BATCH NUMBER (Critical Fix)
-      // normalizeTarget returns a new object, stripping extra props
-      // We attach it to the result, ensuring we cast to any or add property to interface
-      (target as any).batch_number = batchNum
+      // RE-INJECT BATCH NUMBER
+      // We attach it to the result
+      ; (target as any).batch_number = batchNum
 
-    // Explicitly set draft from what we stored (bypassing normalizeTarget's llm check if needed)
-    // The Baker stored it in draft_body (mapped to llm_email_body in sync)
-    // We double check here.
     return target
   }).filter(t => t !== null) as MorningQueueTarget[]
 
