@@ -53,14 +53,14 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
     title: raw?.role || "",
     status: raw?.status || "pending",
     created_at: raw?.created_at || new Date().toISOString(),
-    work_email: raw?.work_email || undefined,
+    work_email: raw?.email || raw?.work_email || undefined,
     linkedinUrl: raw?.linkedin_url || "",
 
     // Mapped Fields
     confidence: raw?.confidence || 85, // Default to high confidence
-    profileImage: raw?.profile_image || "",
+    profileImage: raw?.linkedin_image_url || raw?.profile_image || "",
     contactName: raw?.full_name || "", // Map to full_name
-    email: raw?.work_email || "",
+    email: raw?.email || raw?.work_email || "",
 
     draft: (raw?.llm_email_subject && raw?.llm_email_body) ? {
       subject: raw.llm_email_subject,
@@ -126,14 +126,18 @@ export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
     if (!candidate) return null
 
     // Inject Batch Info
-    candidate.batch_number = item.priority_score
+    const batchNum = item.priority_score
 
     // Normalize using existing helper
     const target = normalizeTarget(candidate)
 
+      // RE-INJECT BATCH NUMBER (Critical Fix)
+      // normalizeTarget returns a new object, stripping extra props
+      // We attach it to the result, ensuring we cast to any or add property to interface
+      (target as any).batch_number = batchNum
+
     // Explicitly set draft from what we stored (bypassing normalizeTarget's llm check if needed)
     // The Baker stored it in draft_body (mapped to llm_email_body in sync)
-    // normalizeTarget uses llm_email_subject/body. 
     // We double check here.
     return target
   }).filter(t => t !== null) as MorningQueueTarget[]
