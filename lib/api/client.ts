@@ -105,15 +105,7 @@ import type { BriefingTarget, BriefingResponse } from "@/lib/types/scout"
  * Should return 8-12 targets max.
  */
 export async function getMorningCoffeeQueue(): Promise<BriefingTarget[]> {
-  if (shouldUseMocks()) {
-    // Legacy mock might be broken, or we need to update it.
-    // For Phase 2, we prefer API.
-    // Assuming mock is updated or we just fallback.
-    const { mockTargets } = await import("./mock/morning-coffee")
-    // Cast strict or fix mock.
-    return new Promise((resolve) => setTimeout(() => resolve(mockTargets as unknown as BriefingTarget[]), 500))
-  }
-
+  // Mock removed.
   const response = await apiRequest<BriefingResponse>("/api/briefing")
   return response.targets
 }
@@ -648,11 +640,7 @@ export async function getCurrentUser(): Promise<User | null> {
  * Endpoint: GET /api/scout/contacts
  */
 export async function getContacts(): Promise<any[]> {
-  if (shouldUseMocks()) {
-    const { mockContacts } = await import("./mock/network")
-    return new Promise((resolve) => setTimeout(() => resolve(mockContacts), 600))
-  }
-
+  // Mock removed.
   const response = await apiRequest<ContactsResponse>("/api/scout/contacts?page=1&page_size=25", {
     method: "GET",
   })
