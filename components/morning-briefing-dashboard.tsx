@@ -732,6 +732,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
             <p className="text-sm text-muted-foreground mb-4">Review today's target batch and approve drafts</p>
 
             <div className="flex items-center justify-between mb-2">
+              <div className="text-xs text-muted-foreground mr-2">Loaded: {targets.length} | Visible: {activeTargets.length}</div>
               {!outlookConnected ? (
                 <div className="text-sm text-orange-400">
                   Status: <span className="font-medium">Outreach Offline</span>
