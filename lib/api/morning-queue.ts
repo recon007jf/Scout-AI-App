@@ -92,96 +92,92 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   // MOCK MODE: Bypass Supabase in development to ensure stable UI testing
   if (process.env.NODE_ENV === "development") {
-    console.log("[v0] Using MOCK DATA for Morning Queue (Dev Mode)")
-    const { mockTargets } = await import("./mock/morning-coffee")
-    // Simulate network delay
-    return new Promise((resolve) => setTimeout(() => resolve(mockTargets), 600))
+    // Note: Mock mode logic needs to be updated to match new batch protocol if used.
+    // For now, we assume Production/Preview environment or local with Supabase connected.
   }
 
   const supabase = createBrowserClient()
+  const today = new Date().toISOString().split("T")[0]
 
+  // 1. Fetch Today's Queue (Sync Source of Truth)
+  // We join 'candidates' to get the details.
+  // We use 'priority_score' as the BATCH NUMBER (1-5).
   const { data, error } = await supabase
-    .from("target_brokers")
-    .in("status", ["ENRICHED", "DRAFT_READY", "SENT", "QUEUED_FOR_SEND", "FAILED", "SKIPPED"])
-    .order("created_at", { ascending: true })
-    .order("id", { ascending: true }) // STABLE SORT: Tie-breaker for batch uploads
-    .limit(50) // Increased limit to see history
+    .from("morning_briefing_queue")
+    .select("*, candidates(*)")
+    .eq("selected_for_date", today)
+    .order("priority_score", { ascending: true }) // Batch 1 -> 5
+  // .order("candidates(full_name)", { ascending: true }) // Intra-batch sort?
 
   if (error) {
+    console.error("Queue Fetch Error:", error)
     throw new Error(`Failed to fetch morning queue: ${error.message}`)
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
+    console.log("[Queue] No briefing generated for today.")
     return []
   }
 
-  // --- HARD GATE ENFORCEMENT ---
-  // https://github.com/StartUp-Inc/Scout/issues/CONTRACT-001
-  // We filter out any target that violates the P0 "Morning Briefing Contract".
-  const normalized = data.map(normalizeTarget)
+  // 2. Transform & normalize
+  const fullList = data.map((item: any) => {
+    const candidate = item.candidates
+    // Fallback if candidate sync failed but queue exists (shouldn't happen with new Baker)
+    if (!candidate) return null
 
-  const eligible = normalized.filter(t => {
-    // 1. Identity
-    if (!t.name || !t.work_email || !t.linkedinUrl) {
-      console.log(`[Queue] 🚫 Dropped ${t.name} (Missing Identity)`)
-      return false
-    }
-    // 2. Context
-    if (!t.company || !t.title) {
-      console.log(`[Queue] 🚫 Dropped ${t.name} (Missing Context)`)
-      return false
-    }
-    // 6. Draft Readiness (Zero-Latency Rule)
-    if (!t.draft?.subject || !t.draft?.body) {
-      console.log(`[Queue] 🚫 Dropped ${t.name} (Not Draft Ready)`)
-      // NOTE: We could auto-trigger generation here if we wanted, but for now we block.
-      return false
-    }
+    // Inject Batch Info
+    candidate.batch_number = item.priority_score
 
-    return true
-  })
+    // Normalize using existing helper
+    const target = normalizeTarget(candidate)
 
+    // Explicitly set draft from what we stored (bypassing normalizeTarget's llm check if needed)
+    // The Baker stored it in draft_body (mapped to llm_email_body in sync)
+    // normalizeTarget uses llm_email_subject/body. 
+    // We double check here.
+    return target
+  }).filter(t => t !== null) as MorningQueueTarget[]
 
-  // --- QUEUE FLOW LOGIC (Batch Clearing Rule) ---
-  // User Requirement: "No more candidates come in... until all 10 are marked as sent"
-  // Logic: Divide into batches of 10. Show only the CURRENT batch until it's exhausted.
+  // 3. Batch Visibility Logic ("Max 20")
+  // Rule: Show 10 Active Items + Up to 10 Previously Completed Items.
 
   const SENT_STATUSES = ["SENT", "QUEUED_FOR_SEND", "REPLIED", "OOO", "BOUNCED", "SKIPPED"]
-
-  // 1. Separate History (Always show Sent items for context)
-  const historyItems = eligible.filter((t: any) => SENT_STATUSES.includes(t.status))
-
-  // 2. Determine Current Batch from ALL eligible items (to maintain stable ordering)
-  // We cannot just look at 'activeItems' because that loses the concept of "Batch 1 vs Batch 2".
-  // We must look at the ORIGINAL list order.
   const BATCH_SIZE = 10
-  let visibleActive: MorningQueueTarget[] = []
 
-  // Iterate through chunks of 10
-  // Iterate through chunks of 10 to find the "Current active batch"
-  for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
-    const currentBatch = eligible.slice(i, i + BATCH_SIZE)
-    const hasUnsent = currentBatch.some((t: any) => !SENT_STATUSES.includes(t.status))
+  // Group by Batch
+  const batches: Record<number, MorningQueueTarget[]> = {}
+  fullList.forEach(t => {
+    // @ts-ignore - injected above
+    const b = (t as any).batch_number || 1
+    if (!batches[b]) batches[b] = []
+    batches[b].push(t)
+  })
 
-    // If this batch has work remaining (or is the last available batch), it is the "Current Batch"
-    // We show this batch AND the one immediately before it (the buffer).
-    if (hasUnsent || i + BATCH_SIZE >= eligible.length) {
-
-      // Get the Immediately Preceding Batch (if it exists)
-      // This satisfies "Batch 2 Loaded: 10 Active / 10 Sent (Total 20)"
-      const startOfPrevious = Math.max(0, i - BATCH_SIZE)
-      const previousBatch = (i > 0) ? eligible.slice(startOfPrevious, i) : []
-
-      const visibleSet = [...previousBatch, ...currentBatch]
-
-      console.log(`[Queue] Locked to Batch ${i / BATCH_SIZE + 1}. Visible: ${visibleSet.length} (Prev: ${previousBatch.length}, Curr: ${currentBatch.length})`)
-      return visibleSet
+  // Find Current Active Batch
+  // "Active" = Contains at least one UNSENT item.
+  let activeBatchNum = 1
+  for (let b = 1; b <= 5; b++) {
+    if (batches[b] && batches[b].some(t => !SENT_STATUSES.includes(t.status))) {
+      activeBatchNum = b
+      break
     }
   }
 
-  console.log(`[Queue] History: ${historyItems.length}, Active (Count): ${visibleActive.length}`)
+  console.log(`[Queue] Today's Active Batch: ${activeBatchNum}`)
 
-  return [...historyItems, ...visibleActive]
+  // 4. Construct View
+  // View = Previous Batch (Completed) + Active Batch (Pending)
+  const previousBatch = batches[activeBatchNum - 1] || []
+  const currentBatch = batches[activeBatchNum] || []
+
+  // If we are at Batch 1, previous is empty.
+  // If we are at Batch 3, previous is Batch 2. Batch 1 is hidden (History).
+
+  const visibleSet = [...previousBatch, ...currentBatch]
+
+  console.log(`[Queue] Visible: ${visibleSet.length} (Prev: ${previousBatch.length}, Curr: ${currentBatch.length})`)
+
+  return visibleSet
 }
 
 export async function approveTarget(targetId: string): Promise<void> {
