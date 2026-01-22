@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ContactNotes } from "@/components/contact-notes"
+import { DossierView } from "@/components/dossier-view"
+import { CandidateIdentityHeader } from "@/components/candidate-identity-header"
 import { toast } from "@/components/ui/use-toast"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -30,6 +32,7 @@ import {
   Check,
   MessageSquare,
   Reply,
+  FileText,
 } from "lucide-react"
 import {
   approveTarget,
@@ -39,7 +42,10 @@ import {
   getOutreachStatus,
   resumeOutreach,
   pauseOutreach,
+  getCandidateDossier,
+  type CandidateDossier,
 } from "@/lib/api/client"
+import { createBrowserClient } from "@/lib/supabase/client"
 import { cn } from "@/lib/utils"
 import { PauseDurationModal } from "@/components/pause-duration-modal"
 import { ThresholdWarningModal } from "@/components/threshold-warning-modal"
@@ -49,7 +55,6 @@ import {
   regenerateDraft,
   regenerateDraftWithFeedback,
 } from "@/lib/api/morning-queue"
-import { createBrowserClient } from "@supabase/ssr" // Import Supabase client
 
 type Target = {
   id: string
@@ -146,6 +151,14 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   const [showCommentDialog, setShowCommentDialog] = useState(false) // Added for the comment dialog state
   const [draftError, setDraftError] = useState<string | null>(null) // Adding state for API error messages
 
+  // ===================================
+  // PHASE 2: SHADOW FETCH STATE
+  // ===================================
+  const [candidateDossier, setCandidateDossier] = useState<CandidateDossier | null>(null)
+  const [isLoadingDossier, setIsLoadingDossier] = useState(false)
+  const [dossierError, setDossierError] = useState<string | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
     loadData()
     checkOutreachStatus()
@@ -226,7 +239,34 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
     }
 
     loadDraftForTarget()
+    loadDraftForTarget()
   }, [selectedTarget])
+
+  // NEW: Auto-fetch Dossier when selectedTarget changes
+  useEffect(() => {
+    const loadDossierForTarget = async () => {
+      if (!selectedTarget) return
+
+      // Avoid refetching if we already have the correct dossier
+      // Note: We might want a more robust check or force refresh strategy later
+      if (candidateDossier?.id === selectedTarget.id) return
+
+      try {
+        setIsLoadingDossier(true)
+        setDossierError(null)
+        const dossier = await getCandidateDossier(selectedTarget.id)
+        setCandidateDossier(dossier)
+      } catch (err) {
+        console.error("Failed to fetch dossier:", err)
+        setDossierError("Failed to load dossier details.")
+        setCandidateDossier(null)
+      } finally {
+        setIsLoadingDossier(false)
+      }
+    }
+
+    loadDossierForTarget()
+  }, [selectedTarget, candidateDossier?.id])
 
   // Load drafts for all active targets on initial load and when activeTargets changes
   useEffect(() => {
@@ -703,7 +743,33 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   })
 
   const handleSelectTarget = (target: Target) => {
+    // 1. Keep Legacy UI Working
     setSelectedTarget(target)
+
+    // 2. Gate 2 Verification: Shadow Fetch
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    setIsLoadingDossier(true)
+    setDossierError(null)
+    setCandidateDossier(null) // STRICT REPLACE logic
+
+    getCandidateDossier(target.id, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return
+        console.log("[SHADOW FETCH] Payload:", data)
+        setCandidateDossier(data)
+        setIsLoadingDossier(false)
+      })
+      .catch((err) => {
+        if (err.name === 'AbortError') return
+        console.error("[SHADOW FETCH] Error:", err)
+        setDossierError(err.message)
+        setIsLoadingDossier(false)
+      })
   }
 
   const handleConnectOutlook = () => {
@@ -724,7 +790,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex h-full gap-6">
         <div className="w-[400px] flex flex-col bg-card border-r border-border h-full overflow-hidden">
           <div className="p-6 border-b border-border">
@@ -831,7 +897,9 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className={cn("font-medium truncate", textColor)}>{target.name}</h3>
+                          <div className="font-semibold text-foreground/90 truncate">
+                            {target.contactName || target.name || "Unknown Contact"}
+                          </div>
                           <p className={cn("text-sm truncate", textColor || "text-muted-foreground")}>{target.title}</p>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -914,403 +982,278 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         <div className="flex-1 flex flex-col overflow-hidden">
           {selectedTarget && (
             <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
-                <Card className="p-6 bg-card/60">
-                  <div className="flex items-start gap-4">
-                    <Avatar className="w-16 h-16 border-2 border-border">
-                      <AvatarImage src={selectedTarget.profileImage} />
-                      <AvatarFallback className="bg-blue-500 text-white font-semibold text-xl">
-                        {getInitials(selectedTarget.contactName || selectedTarget.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <h2 className="text-xl font-semibold text-foreground mb-1">{selectedTarget.contactName}</h2>
-                      <p className="text-muted-foreground mb-2">{selectedTarget.title}</p>
-                      <div className="flex items-center gap-3 text-sm">
-                        <a
-                          href={`mailto:${selectedTarget.email}`}
-                          className="flex items-center gap-1.5 text-primary hover:underline"
-                        >
-                          <Mail className="w-4 h-4" />
-                          Email
-                        </a>
-                        {(() => {
-                          const rawUrl = selectedTarget.linkedinUrl
-                          if (!rawUrl) {
-                            return (
-                              <span className="flex items-center gap-1.5 text-muted-foreground cursor-not-allowed opacity-70">
-                                <Linkedin className="w-4 h-4" />
-                                <span className="text-xs">(No LinkedIn Available)</span>
-                              </span>
-                            )
-                          }
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "draft" | "dossier")} className="flex-1 flex flex-col overflow-hidden">
+                {/* PERMANENT IDENTITY HEADER (View-Owned) */}
+                <div className="px-6 pt-6 pb-2">
+                  <CandidateIdentityHeader
+                    name={selectedTarget.contactName}
+                    title={selectedTarget.title}
+                    firm={selectedTarget.company}
+                    email={selectedTarget.email}
+                    linkedinUrl={selectedTarget.linkedinUrl}
+                    confidence={selectedTarget.confidence}
+                    profileImage={selectedTarget.profileImage}
+                  />
+                </div>
 
-                          const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`
-
-                          return (
-                            <a
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 text-primary hover:underline"
-                            >
-                              <Linkedin className="w-4 h-4" />
-                              LinkedIn
-                            </a>
-                          )
-                        })()}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="gap-2">
-                      <TrendingUp className="w-3.5 h-3.5" />
-                      {selectedTarget.confidence}% confidence
-                    </Badge>
-                  </div>
-                </Card>
-
-                <ContactNotes contactName={selectedTarget.contactName || "Contact"} contactId={selectedTarget.id} />
-
-                <Card className="p-4 bg-card/40">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="default"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={() => handleApprove(selectedTarget.id)}
-                      disabled={!outlookConnected || outreachStatus === "paused"}
+                <div className="px-6 pt-4 border-b bg-card">
+                  <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
+                    <TabsTrigger
+                      value="draft"
+                      className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Approve Draft
-                    </Button>
-                    {pausedTargets.has(selectedTarget.id) ? (
-                      <Button
-                        variant="outline"
-                        className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
-                        onClick={() => handleUnpause(selectedTarget.id)}
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Unpause
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="border-border/50 hover:bg-accent/5 bg-transparent"
-                        onClick={() => handlePauseTarget(selectedTarget.id)}
-                      >
-                        <Pause className="w-4 h-4 mr-2" />
-                        Pause
-                      </Button>
-                    )}
-                    {dismissedTargets.has(selectedTarget.id) ? (
-                      <Button
-                        variant="outline"
-                        className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
-                        onClick={() => handleUndoDismiss(selectedTarget.id)}
-                      >
-                        <Undo2 className="w-4 h-4 mr-2" />
-                        Undo
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
-                        onClick={() => handleDismiss(selectedTarget.id)}
-                      >
-                        <X className="w-4 h-4 mr-2" />
-                        Dismiss Target
-                      </Button>
-                    )}
-                  </div>
-                  {!outlookConnected ? (
-                    <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-sm text-orange-600 dark:text-orange-400">
-                      Connect Outlook in Settings to activate outreach and approve drafts.
-                    </div>
-                  ) : outreachStatus === "paused" ? (
-                    <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm text-amber-600 dark:text-amber-400">
-                      Outreach is paused. Resume to approve drafts.
-                    </div>
-                  ) : null}
-                </Card>
-              </div>
+                      Review Draft
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="dossier"
+                      className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-4 py-2"
+                    >
+                      Full Dossier
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "draft" | "dossier")} className="w-full">
-                <TabsList className="w-full justify-start border-b rounded-none bg-transparent p-0">
-                  <TabsTrigger
-                    value="draft"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-                  >
-                    Review Draft
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="dossier"
-                    className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-                  >
-                    Full Dossier
-                  </TabsTrigger>
-                </TabsList>
+                <div className="flex-1 overflow-y-auto px-6 pb-6 pt-2">
+                  <TabsContent value="draft" className="space-y-6 m-0 focus-visible:ring-0">
+                    {/* 1. Identity Header Removed (Hoisted) */}
 
-                <TabsContent value="draft" className="space-y-4">
-                  <Card className="p-6">
-
-
-                    {isGeneratingDraft && (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                        <p className="ml-3 text-muted-foreground">Generating draft...</p>
+                    {/* 2. Actions Block (Moved from Parent) */}
+                    <Card className="p-4 bg-card/40">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleApprove(selectedTarget.id)}
+                          disabled={!outlookConnected || outreachStatus === "paused"}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Approve Draft
+                        </Button>
+                        {pausedTargets.has(selectedTarget.id) ? (
+                          <Button
+                            variant="outline"
+                            className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
+                            onClick={() => handleUnpause(selectedTarget.id)}
+                          >
+                            <Undo2 className="w-4 h-4 mr-2" />
+                            Unpause
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="border-border/50 hover:bg-accent/5 bg-transparent"
+                            onClick={() => handlePauseTarget(selectedTarget.id)}
+                          >
+                            <Pause className="w-4 h-4 mr-2" />
+                            Pause
+                          </Button>
+                        )}
+                        {dismissedTargets.has(selectedTarget.id) ? (
+                          <Button
+                            variant="outline"
+                            className="border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 bg-amber-500/10"
+                            onClick={() => handleUndoDismiss(selectedTarget.id)}
+                          >
+                            <Undo2 className="w-4 h-4 mr-2" />
+                            Undo
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
+                            onClick={() => handleDismiss(selectedTarget.id)}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Dismiss Target
+                          </Button>
+                        )}
                       </div>
-                    )}
 
-                    {!isGeneratingDraft && selectedTarget && (
-                      <>
-                        <div>
-                          <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-medium text-muted-foreground">SUBJECT LINE</h3>
-                            <div className="flex gap-2">
-                              {isEditingEmail ? (
-                                <>
-                                  <Button onClick={handleSaveEdit}>
-                                    <Check className="mr-2 h-4 w-4" />
-                                    Save Changes
-                                  </Button>
-                                  <Button variant="outline" onClick={handleCancelEdit}>
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <Button variant="outline" size="sm" onClick={handleStartEdit}>
-                                    <Pencil className="mr-2 h-4 w-4" />
-                                    Edit Email
-                                  </Button>
+                      {!outlookConnected ? (
+                        <div className="mt-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded text-sm text-orange-600 dark:text-orange-400">
+                          Connect Outlook in Settings to activate outreach and approve drafts.
+                        </div>
+                      ) : outreachStatus === "paused" ? (
+                        <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm text-amber-600 dark:text-amber-400">
+                          Outreach is paused. Resume to approve drafts.
+                        </div>
+                      ) : null}
+                    </Card>
+
+
+
+                    {/* 4. Draft Editor */}
+                    <Card className="p-6">
+                      {isGeneratingDraft && (
+                        <div className="flex items-center justify-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          <p className="ml-3 text-muted-foreground">Generating draft...</p>
+                        </div>
+                      )}
+
+                      {!isGeneratingDraft && (
+                        <>
+                          <div>
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-sm font-medium text-muted-foreground">SUBJECT LINE</h3>
+                              <div className="flex gap-2">
+                                {isEditingEmail ? (
+                                  <>
+                                    <Button onClick={handleSaveEdit}>
+                                      <Check className="mr-2 h-4 w-4" />
+                                      Save Changes
+                                    </Button>
+                                    <Button variant="outline" onClick={handleCancelEdit}>
+                                      Cancel
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleStartEdit}
+                                      className="border-emerald-500/30 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                                    >
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={handleRegenerateDraft}
+                                      disabled={isRegenerating || isGeneratingDraft}
+                                      className="border-violet-500/30 text-violet-600 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-950/30"
+                                    >
+                                      {isRegenerating || isGeneratingDraft ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                      )}
+                                      AI Rewrite
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setShowRegenerateInput(true)}
+                                      disabled={isRegenerating || isGeneratingDraft}
+                                      className="border-indigo-500/30 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/30"
+                                    >
+                                      <MessageSquare className="mr-2 h-4 w-4" />
+                                      Guided Rewrite
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {isEditingEmail ? (
+                              <>
+                                <Input
+                                  value={editedSubject}
+                                  onChange={(e) => setEditedSubject(e.target.value)}
+                                  placeholder="Email subject..."
+                                  className="mb-4"
+                                />
+                                <Textarea
+                                  value={editedBody}
+                                  onChange={(e) => setEditedBody(e.target.value)}
+                                  placeholder="Email body..."
+                                  className="min-h-[300px] font-mono text-sm"
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-lg font-semibold mb-6">{editedSubject}</div>
+                                <div className="prose prose-sm max-w-none whitespace-pre-wrap max-h-[500px] overflow-y-auto pr-2">
+                                  {editedBody}
+                                </div>
+                              </>
+                            )}
+
+                            {/* Inline Guided Rewrite Field */}
+                            {showRegenerateInput && (
+                              <div className="mt-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <MessageSquare className="w-4 h-4 text-indigo-500" />
+                                  <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">Guided Rewrite</span>
+                                </div>
+                                <Textarea
+                                  value={regenerateComments}
+                                  onChange={(e) => setRegenerateComments(e.target.value)}
+                                  placeholder="Tell the AI what to change or improve..."
+                                  className="min-h-[80px] mb-3 bg-background"
+                                />
+                                <div className="flex gap-2">
                                   <Button
-                                    variant="outline"
                                     size="sm"
-                                    onClick={handleRegenerateDraft}
-                                    disabled={isRegenerating || isGeneratingDraft}
+                                    onClick={handleRegenerateWithFeedback}
+                                    disabled={!regenerateComments.trim() || isGeneratingDraft}
+                                    className="bg-indigo-600 hover:bg-indigo-700"
                                   >
-                                    {isRegenerating || isGeneratingDraft ? (
+                                    {isGeneratingDraft ? (
                                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     ) : (
                                       <Sparkles className="mr-2 h-4 w-4" />
                                     )}
-                                    Regenerate with AI (v2)
+                                    Regenerate
                                   </Button>
                                   <Button
-                                    variant="outline"
+                                    variant="ghost"
                                     size="sm"
-                                    onClick={() => setShowCommentDialog(true)}
-                                    disabled={isRegenerating || isGeneratingDraft}
+                                    onClick={() => {
+                                      setShowRegenerateInput(false)
+                                      setRegenerateComments("")
+                                    }}
                                   >
-                                    <MessageSquare className="mr-2 h-4 w-4" />
-                                    Regenerate with Comments
+                                    Cancel
                                   </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {isEditingEmail ? (
-                            <>
-                              <Input
-                                value={editedSubject}
-                                onChange={(e) => setEditedSubject(e.target.value)}
-                                placeholder="Email subject..."
-                                className="mb-4"
-                              />
-                              <Textarea
-                                value={editedBody}
-                                onChange={(e) => setEditedBody(e.target.value)}
-                                placeholder="Email body..."
-                                className="min-h-[300px] font-mono text-sm"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-lg font-semibold mb-6">{editedSubject}</div>
-                              <div className="prose prose-sm max-w-none whitespace-pre-wrap max-h-[500px] overflow-y-auto pr-2">
-                                {editedBody}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </Card>
-
-                  <Card className="p-4 bg-primary/5 border-primary/20">
-                    <div className="flex gap-3">
-                      <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                      <div>
-                        <h3 className="font-medium text-foreground mb-1">Why this target?</h3>
-                        <p className="text-sm text-muted-foreground">{selectedTarget.aiRationale}</p>
-                      </div>
-                    </div>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="dossier" className="space-y-4 mt-4">
-                  <Card className="p-6 bg-card/60">
-                    <div className="flex items-start gap-3 mb-4">
-                      <Users className="w-5 h-5 text-primary mt-0.5" />
-                      <div>
-                        <h3 className="font-semibold text-foreground mb-1">Business Persona</h3>
-                        <Badge variant="secondary" className="mb-3">
-                          {selectedTarget.businessPersona?.type || "Unknown"}
-                        </Badge>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          {selectedTarget.businessPersona?.description || "No description available"}
-                        </p>
-                        <div className="space-y-3">
-                          <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Decision Style
-                            </label>
-                            <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.businessPersona?.decisionStyle || "Not specified"}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Communication Preference
-                            </label>
-                            <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.businessPersona?.communicationPreference || "Not specified"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-
-                  <Card className="p-6 bg-card/60">
-                    <div className="flex items-start gap-3">
-                      <Building2 className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-3">Self-Funded Plans Under Management</h3>
-                        <div className="space-y-3">
-                          {selectedTarget.dossier?.selfFundedPlans &&
-                            selectedTarget.dossier.selfFundedPlans.length > 0 ? (
-                            selectedTarget.dossier.selfFundedPlans.map((plan, idx) => (
-                              <div
-                                key={idx}
-                                className="p-4 bg-muted/40 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div>
-                                    <h4 className="font-medium text-foreground">{plan.clientName}</h4>
-                                    <p className="text-sm text-muted-foreground mt-0.5">{plan.planType}</p>
-                                  </div>
-                                  <Badge variant="outline" className="shrink-0">
-                                    {plan.enrollmentSize} lives
-                                  </Badge>
                                 </div>
-                                {plan.renewalDate && (
-                                  <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
-                                    <Calendar className="w-4 h-4 text-primary" />
-                                    <span>Renewal: {plan.renewalDate}</span>
-                                  </div>
-                                )}
-                                {plan.upcomingChanges && (
-                                  <div className="mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-sm">
-                                    <span className="text-amber-600 dark:text-amber-400 font-medium">Note: </span>
-                                    <span className="text-foreground">{plan.upcomingChanges}</span>
-                                  </div>
-                                )}
                               </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No self-funded plans data available</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </Card>
 
-                  <Card className="p-6 bg-card/60">
-                    <div className="flex items-start gap-3 mb-4">
-                      <Building2 className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-3">Company Intelligence</h3>
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Company Size
-                            </label>
-                            <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.dossier?.companySize || "Not available"}
-                            </p>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Industry
-                            </label>
-                            <p className="text-sm text-foreground mt-1">
-                              {selectedTarget.dossier?.industry || "Not available"}
-                            </p>
-                          </div>
-                        </div>
+                    {/* 3. Contact Notes (Moved below Draft Editor) */}
+                    <ContactNotes contactName={selectedTarget.contactName || "Contact"} contactId={selectedTarget.id} />
+
+                    {/* 5. AI Rationale */}
+                    <Card className="p-4 bg-primary/5 border-primary/20">
+                      <div className="flex gap-3">
+                        <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <div>
-                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                            Opportunity Score
-                          </label>
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 bg-muted rounded-full h-2">
-                              <div
-                                className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
-                                style={{ width: `${selectedTarget.dossier?.opportunityScore || 0}%` }}
-                              />
-                            </div>
-                            <span className="text-sm font-semibold text-foreground">
-                              {selectedTarget.dossier?.opportunityScore || 0}%
-                            </span>
-                          </div>
+                          <h3 className="font-medium text-foreground mb-1">Why this target?</h3>
+                          <p className="text-sm text-muted-foreground">{selectedTarget.aiRationale}</p>
                         </div>
                       </div>
-                    </div>
-                  </Card>
+                    </Card>
+                  </TabsContent>
 
-                  <Card className="p-6 bg-card/60">
-                    <div className="flex items-start gap-3">
-                      <Clock className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-3">Recent Activity</h3>
-                        <ul className="space-y-2">
-                          {selectedTarget.dossier?.recentActivity &&
-                            selectedTarget.dossier.recentActivity.length > 0 ? (
-                            selectedTarget.dossier.recentActivity.map((activity, idx) => (
-                              <li key={idx} className="flex gap-2 text-sm text-muted-foreground">
-                                <span className="text-primary mt-1">•</span>
-                                <span>{activity}</span>
-                              </li>
-                            ))
-                          ) : (
-                            <li className="text-sm text-muted-foreground">No recent activity</li>
-                          )}
-                        </ul>
-                      </div>
-                    </div>
-                  </Card>
+                  <TabsContent value="dossier" className="space-y-4 m-0 focus-visible:ring-0">
 
-                  <Card className="p-6 bg-card/60">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-3">Identified Pain Points</h3>
-                        <ul className="space-y-2">
-                          {selectedTarget.dossier?.painPoints && selectedTarget.dossier.painPoints.length > 0 ? (
-                            selectedTarget.dossier.painPoints.map((pain, idx) => (
-                              <li key={idx} className="flex gap-2 text-sm text-muted-foreground">
-                                <span className="text-primary mt-1">•</span>
-                                <span>{pain}</span>
-                              </li>
-                            ))
-                          ) : (
-                            <li className="text-sm text-muted-foreground">No pain points identified</li>
-                          )}
-                        </ul>
-                      </div>
+                    <div className="flex justify-end px-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setActiveTab("draft")}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Undo2 className="w-4 h-4 mr-2" />
+                        Back to Draft
+                      </Button>
                     </div>
-                  </Card>
-                </TabsContent>
+                    <DossierView
+                      dossier={candidateDossier}
+                      isLoading={isLoadingDossier}
+                      error={dossierError}
+                      onRetry={() => {
+                        if (selectedTarget) handleSelectTarget(selectedTarget)
+                      }}
+                    />
+                  </TabsContent>
+                </div>
               </Tabs>
             </div>
           )}
@@ -1331,35 +1274,7 @@ export function MorningBriefingDashboard({ onNavigateToSettings }: { onNavigateT
         />
       </div >
 
-      {/* Comment Dialog */}
-      {
-        showCommentDialog && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-[500px] p-6">
-              <h3 className="text-lg font-semibold mb-4">Provide Regeneration Feedback</h3>
-              <Textarea
-                value={regenerateComments}
-                onChange={(e) => setRegenerateComments(e.target.value)}
-                placeholder="Tell the AI what to change or improve..."
-                className="min-h-[120px] mb-4"
-              />
-              <div className="flex gap-2">
-                <Button onClick={handleRegenerateWithFeedback} disabled={!regenerateComments.trim() || isGeneratingDraft}>
-                  {isGeneratingDraft ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="mr-2 h-4 w-4" />
-                  )}
-                  Regenerate
-                </Button>
-                <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )
-      }
+      {/* Popup dialog removed - now inline below email */}
 
       <div className="border-t border-border bg-muted/50 px-4 py-2 text-xs text-muted-foreground">
         Build: v251 | Time: {new Date().toISOString()} | Backend: ...7752

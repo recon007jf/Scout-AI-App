@@ -186,7 +186,16 @@ export function MorningBriefingView() {
                   <AvatarFallback className="bg-blue-500 text-white text-2xl font-semibold">
                     {getInitials(currentTarget.name)}
                   </AvatarFallback>
+                  {currentTarget.profileImage && (
+                    <img
+                      src={currentTarget.profileImage}
+                      alt={currentTarget.name}
+                      className="aspect-square h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
                 </Avatar>
+
                 <div className="flex-1">
                   <h4 className="text-xl font-semibold text-foreground">{currentTarget.name}</h4>
                   <p className="text-muted-foreground">{currentTarget.title}</p>

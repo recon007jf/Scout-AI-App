@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types"
 
 import type { ContactsResponse } from "@/lib/types/api"
+import { z } from "zod"
 
 export function getApiBaseUrl(): string {
   const url = process.env.NEXT_PUBLIC_API_URL || "https://scout-backend-prod-283427197752.us-central1.run.app"
@@ -56,7 +57,7 @@ function shouldUseMocks(): boolean {
 // HTTP Client Helper
 // ============================================================================
 
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+export async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${getApiBaseUrl()}${endpoint}`
 
   // Get auth token from localStorage (Antigravity will provide this)
@@ -646,5 +647,107 @@ export async function getContacts(): Promise<any[]> {
   })
 
   return response.contacts
+}
+
+// ============================================================================
+// Candidate Dossier (Authoritative Single Source)
+// ============================================================================
+
+const draftSchema = z.object({
+  id: z.string(),
+  subject: z.string().nullable().optional(), // Allow flexible backend response
+  body: z.string().nullable().optional(),
+})
+
+const signalSchema = z.object({
+  type: z.string(),
+  summary: z.string(),
+  source: z.string(),
+  date: z.string(),
+})
+
+const provenanceSchema = z.object({
+  source_file: z.string(),
+  source_row: z.union([z.string(), z.number()]), // Flexible ID
+  last_enriched: z.string(),
+  liveness_status: z.string(),
+  signal_count: z.number(),
+})
+
+// Strict Authoritative Contract
+export const candidateDossierSchema = z.object({
+  id: z.string(),
+  contact_name: z.string(),
+  firm: z.string(),
+  role: z.string(),
+  email: z.string().nullable().optional(),
+  linkedin_url: z.string(),
+  status: z.string(),
+  confidence_score: z.number(),
+  draft: draftSchema,
+  signals: z.array(signalSchema),
+  provenance: provenanceSchema,
+  commercial_context: z.object({
+    sponsor_name: z.string().nullable().optional(),
+    lives: z.union([z.string(), z.number()]).nullable().optional(),
+    self_funded_status: z.string().optional()
+  }).optional(),
+  dossier: z.record(z.any()).optional(), // Keep legacy bag for now
+})
+
+export type CandidateDossier = z.infer<typeof candidateDossierSchema>
+
+export class SchemaMismatchError extends Error {
+  constructor(message: string, public zodError: z.ZodError) {
+    super(message)
+    this.name = "SchemaMismatchError"
+  }
+}
+
+/**
+ * Fetches the authoritative candidate dossier.
+ * - Enforces Zod Schema Validation
+ * - Supports AbortSignal for race-condition handling
+ */
+export async function getCandidateDossier(candidateId: string, signal?: AbortSignal): Promise<CandidateDossier> {
+  const url = `${getApiBaseUrl()}/api/scout/candidates/${candidateId}`
+
+  // Get auth token from localStorage
+  const token = typeof window !== "undefined" ? localStorage.getItem("scout_auth_token") : null
+
+  try {
+    const response = await fetch(url, {
+      signal, // Pass abort signal
+      cache: 'no-store',
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    })
+
+    if (!response.ok) {
+      // If aborted, fetch throws AbortError before this, but if server 404/500:
+      throw new Error(`Failed to fetch dossier: ${response.status} ${response.statusText}`)
+    }
+
+    const raw = await response.json()
+
+    // VALIDATE
+    const result = candidateDossierSchema.safeParse(raw)
+
+    if (!result.success) {
+      console.error("[Client] Schema Mismatch for Dossier:", result.error)
+      throw new SchemaMismatchError("Backend response did not match expected Dossier shape.", result.error)
+    }
+
+    return result.data
+
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // Re-throw aborts so UI can ignore them silently
+      throw error
+    }
+    throw error // Propagate other errors
+  }
 }
 

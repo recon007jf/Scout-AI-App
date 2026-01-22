@@ -272,7 +272,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
         </div>
 
         {/* Content */}
-        <main className="relative flex-1 overflow-auto">
+        <main className="relative flex-1 overflow-hidden flex flex-col">
           {activeView === "morning" && <MorningBriefingDashboard />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}

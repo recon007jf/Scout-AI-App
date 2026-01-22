@@ -89,102 +89,84 @@ export const normalizeTarget = (raw: any): MorningQueueTarget => {
   }
 }
 
-export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
-  // MOCK MODE: Bypass Supabase in development to ensure stable UI testing
-  if (process.env.NODE_ENV === "development") {
-    // Note: Mock mode logic needs to be updated to match new batch protocol if used.
-    // For now, we assume Production/Preview environment or local with Supabase connected.
-  }
+// ============================================================================
+// ADAPTER: Backend API -> Frontend Interface
+// ============================================================================
 
-  const supabase = createBrowserClient()
-  // FIX: Use local date to match "Business Day" logic, not UTC (which shifts at 4PM PST)
-  // We want the date relative to the user's browser, or hardcode to PST if we want absolute consistency.
-  // Ideally, backend sets the business date. 
-  // For now, let's just grab the YYYY-MM-DD from the local clock.
-  const localDate = new Date();
-  const offset = localDate.getTimezoneOffset()
-  const today = new Date(localDate.getTime() - (offset * 60 * 1000)).toISOString().split('T')[0]
+import { apiRequest } from "@/lib/api/client"
+import type { BriefingResponse, BriefingTarget } from "@/lib/types/scout"
 
-  // 1. Fetch Today's Queue (Sync Source of Truth)
-  // We join 'candidates' to get the details.
-  // We use 'priority_score' as the BATCH NUMBER (1-5).
-  const { data, error } = await supabase
-    .from("morning_briefing_queue")
-    .select("*, candidates(*)")
-    .eq("selected_for_date", today)
-    .order("priority_score", { ascending: true }) // Batch 1 -> 5
-  // .order("candidates(full_name)", { ascending: true }) // Intra-batch sort?
+function adaptBriefingTarget(t: BriefingTarget, batchNum: number): MorningQueueTarget {
+  return {
+    id: t.targetId,
+    // Flatten Broker info to root level per legacy interface
+    name: t.broker.name,
+    company: t.broker.firm,
+    title: t.broker.title,
+    status: t.status,
+    created_at: t.createdAt,
+    work_email: t.broker.email,
+    linkedinUrl: t.broker.linkedIn || "", // Mandatory in Interface
 
-  if (error) {
-    console.error("Queue Fetch Error:", error)
-    throw new Error(`Failed to fetch morning queue: ${error.message}`)
-  }
+    // Mapped Fields
+    confidence: 85, // Default for curated list
+    profileImage: t.broker.avatar || "",
+    contactName: t.broker.name,
+    email: t.broker.email,
 
-  if (!data || data.length === 0) {
-    console.log("[Queue] No briefing generated for today.")
-    return []
-  }
+    // Deep Objects (Draft, Persona, Dossier) match roughly but need precise type alignment
+    draft: t.draft ? {
+      subject: t.draft.subject,
+      body: t.draft.body,
+      tone: "Professional",
+      wordCount: (t.draft.body || "").split(/\s+/).length
+    } : null,
 
-  // 2. Transform & normalize
-  const fullList = data.map((item: any) => {
-    const candidate = item.candidates
-    // Fallback if candidate sync failed but queue exists (shouldn't happen with new Baker)
-    if (!candidate) return null
+    aiRationale: t.businessPersona?.description || "Algorithm Selection",
 
-    // Inject Batch Info
-    const batchNum = item.priority_score
+    businessPersona: {
+      type: t.businessPersona?.type || "Standard",
+      description: t.businessPersona?.description || "",
+      decisionStyle: t.businessPersona?.decisionStyle || "",
+      communicationPreference: t.businessPersona?.communicationPreference || ""
+    },
 
-    // Normalize using existing helper
-    // Normalize using existing helper
-    const target = normalizeTarget(candidate)
-
-      // RE-INJECT BATCH NUMBER
-      // We attach it to the result
-      ; (target as any).batch_number = batchNum
-
-    return target
-  }).filter(t => t !== null) as MorningQueueTarget[]
-
-  // 3. Batch Visibility Logic ("Max 20")
-  // Rule: Show 10 Active Items + Up to 10 Previously Completed Items.
-
-  const SENT_STATUSES = ["SENT", "QUEUED_FOR_SEND", "REPLIED", "OOO", "BOUNCED", "SKIPPED"]
-  const BATCH_SIZE = 10
-
-  // Group by Batch
-  const batches: Record<number, MorningQueueTarget[]> = {}
-  fullList.forEach(t => {
-    // @ts-ignore - injected above
-    const b = (t as any).batch_number || 1
-    if (!batches[b]) batches[b] = []
-    batches[b].push(t)
-  })
-
-  // Find Current Active Batch
-  // "Active" = Contains at least one UNSENT item.
-  let activeBatchNum = 1
-  for (let b = 1; b <= 5; b++) {
-    if (batches[b] && batches[b].some(t => !SENT_STATUSES.includes(t.status))) {
-      activeBatchNum = b
-      break
+    // Dossier flattening if needed, or pass through
+    dossier: {
+      selfFundedPlans: [], // Not yet in backend response?
+      companySize: t.sponsor?.revenue || "Unknown", // Mapping sponsor revenue to companySize
+      industry: t.sponsor?.industry || "Unknown",
+      opportunityScore: t.dossier?.relationshipScore || 50,
+      recentActivity: t.dossier?.keyNotes || [], // Map notes to activity
+      painPoints: [] // Not in backend response yet
     }
   }
+}
 
-  console.log(`[Queue] Today's Active Batch: ${activeBatchNum}`)
+export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
+  try {
+    // 1. Fetch from Authoritative Backend API
+    const response = await apiRequest<BriefingResponse>("/api/briefing")
 
-  // 4. Construct View
-  // View = Previous Batch (Completed) + Active Batch (Pending)
-  const previousBatch = batches[activeBatchNum - 1] || []
-  const currentBatch = batches[activeBatchNum] || []
+    // 2. Adapt to Legacy Interface
+    const rawTargets = response.targets || []
 
-  // If we are at Batch 1, previous is empty.
-  // If we are at Batch 3, previous is Batch 2. Batch 1 is hidden (History).
+    if (rawTargets.length === 0) {
+      console.log("[Queue] No briefing generated (API returned empty).")
+      return []
+    }
 
-  const visibleSet = [...previousBatch, ...currentBatch]
+    // 3. Batch Logic (Client-Side for Phase 3)
+    // We assign batch based on priority or just default to Batch 1 since backend limits to 10
+    const adaptedList = rawTargets.map(t => adaptBriefingTarget(t, 1))
 
-  console.log(`[Queue] Visible: ${visibleSet.length} (Prev: ${previousBatch.length}, Curr: ${currentBatch.length})`)
+    return adaptedList
 
-  return visibleSet
+  } catch (error) {
+    console.error("[Queue] Failed to fetch via API:", error)
+    // Fail safe to empty list
+    return []
+  }
 }
 
 export async function approveTarget(targetId: string): Promise<void> {
@@ -368,15 +350,8 @@ export async function regenerateDraftWithFeedback(
   currentDraft: { subject: string; body: string },
   comments: string,
 ): Promise<{ subject: string; body: string }> {
-  // MOCK MODE
-  if (process.env.NODE_ENV === "development") {
-    console.log("[v0] Mock Regenerate with Feedback:", comments)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    return {
-      subject: `[UPDATED] ${currentDraft.subject}`,
-      body: `Hi ${target.contactName.split(" ")[0]},\n\n(Updated based on feedback: "${comments}")\n\nHere is the revised draft incorporating your specific notes regarding ${target.company}.\n\nBest,\nAndrew`,
-    }
-  }
+  // MOCK DISABLED: Using real backend LLM for testing two-stage note classification
+  console.log("[v0] Using REAL backend for guided rewrite (mock disabled)")
 
   const dossier_id = target.id
 
@@ -452,7 +427,7 @@ export async function regenerateDraft(target: MorningQueueTarget): Promise<{ sub
     console.log("[v0] Mock Regenerate Draft")
     await new Promise((resolve) => setTimeout(resolve, 1200))
     return {
-      subject: `[REGENERATED] Fresh Perspective for ${target.company}`,
+      subject: `Fresh Perspective for ${target.company}`,
       body: `Hi ${target.contactName.split(" ")[0]},\n\nI'm reaching out with a completely fresh perspective on ${target.company}'s risk profile.\n\nOur AI has identified new patterns that suggest an immediate conversation is warranted.\n\nBest,\nAndrew`,
     }
   }

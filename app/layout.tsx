@@ -45,7 +45,7 @@ export default function RootLayout({
         baseTheme: dark,
       }}
     >
-      <html lang="en" className="dark">
+      <html lang="en" className="dark" suppressHydrationWarning>
         <body className={`font-sans antialiased`}>
           <VersionGate />
           {children}

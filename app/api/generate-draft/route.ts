@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
           getAll() {
             return cookieStore.getAll()
           },
-          setAll() {},
+          setAll() { },
         },
       },
     )
@@ -60,11 +60,17 @@ export async function POST(req: NextRequest) {
     }
 
     const payload = {
-      id: dossier_id,
+      dossier_id: dossier_id,  // Backend expects dossier_id, not id
       force_regenerate: Boolean(body.force_regenerate),
       comments: String(body.comments || ""),
       user_email: userEmail,
     }
+
+    // DEBUG: Log incoming comments explicitly
+    console.log("[Proxy] ====== COMMENT DEBUG ======")
+    console.log("[Proxy] body.comments:", body.comments)
+    console.log("[Proxy] payload.comments:", payload.comments)
+    console.log("[Proxy] ============================")
 
     console.log("[v0] Validated payload:", JSON.stringify(payload, null, 2))
 

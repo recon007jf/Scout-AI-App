@@ -7,25 +7,37 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useProfileImage } from "@/lib/hooks/use-profile-image"
-import { createBrowserClient } from "@/lib/supabase/client" // Import Supabase client
+import { createBrowserClient } from "@/lib/supabase/client"
+import { DossierView } from "./dossier-view"
 import {
   Coffee,
   CheckCircle2,
   Edit3,
   X,
   Sparkles,
-  Clock,
-  AlertCircle,
+  RefreshCw,
+  TrendingUp,
   Building2,
   Mail,
   Linkedin,
-  FileText,
-  TrendingUp,
-  Users,
-  DollarSign,
+  AlertTriangle
 } from "lucide-react"
 
-interface TargetInterface {
+// Types
+export interface ProvenanceData {
+  source_file: string
+  source_row: number
+  last_enriched: string
+  liveness_status: string
+  signal_count: number
+  confidence: number // mapped from confidence_score
+  // Legacy mappings for display
+  clay_linkedin?: string
+  serper_linkedin?: string
+  linkedin_final?: string
+}
+
+export interface TargetInterface {
   id: string
   contactName: string
   title: string
@@ -35,39 +47,48 @@ interface TargetInterface {
   profileImage?: string
   confidenceScore: number
   aiRationale: string
-  businessPersona: {
-    type: string
-    description: string
-    decisionStyle: string
-    communicationPreference: string
-  }
+  status: "pending" | "approved" | "rejected" | "paused" | "failed"
+
+  // Rich Data (Loaded on demand)
   dossier: {
-    companySize: string
-    industry: string
-    recentActivity: string[]
-    painPoints: string[]
-    opportunityScore: number
+    companySize?: string
+    industry?: string
+    notes?: string
+    opportunityScore?: number
+    recentSignals: string[] // Strings for UI
+    structuredSignals?: any[] // Raw objects
+    painPoints?: string[]
+    recentActivity?: string[]
   }
+
   draft: {
+    id?: string
     subject: string
     body: string
     tone: string
     wordCount: number
   }
-  status: "pending" | "approved" | "rejected"
+
+  broker: {
+    name: string
+    firm: string
+    title: string
+    avatar?: string
+    location?: string
+    linkedin?: string
+    provenance: ProvenanceData
+  }
 }
 
-function TargetAvatar({ name, company, linkedinUrl }: { name: string; company: string; linkedinUrl?: string }) {
+function TargetAvatar({ name, company, linkedinUrl, profileImage }: { name: string; company: string; linkedinUrl?: string; profileImage?: string }) {
   const { imageUrl } = useProfileImage(name, company, linkedinUrl)
+  const finalImage = profileImage || imageUrl
 
   return (
     <Avatar className="w-14 h-14 border-2 border-border">
-      {imageUrl && <AvatarImage src={imageUrl || "/placeholder.svg"} alt={name} />}
+      {finalImage && <AvatarImage src={finalImage} alt={name} referrerPolicy="no-referrer" />}
       <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-        {name
-          .split(" ")
-          .map((n) => n[0])
-          .join("")}
+        {name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
       </AvatarFallback>
     </Avatar>
   )
@@ -78,115 +99,187 @@ export function MorningCoffeeDashboard() {
   const [targets, setTargets] = useState<TargetInterface[]>([])
   const [activeTab, setActiveTab] = useState<"draft" | "dossier">("draft")
   const [isLoading, setIsLoading] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false) // For action buttons
 
   useEffect(() => {
     loadTargets()
   }, [])
 
+  // 1. Initial Load (List View) - Keeps payload light
   const loadTargets = async () => {
     try {
       setIsLoading(true)
       const supabase = createBrowserClient()
 
+      // Fetch ACTIVE + PREVIOUS (Slicing handled by UI/Engine usually, but here we just grab recent)
+      // Including FAILED for visibility as requested
       const { data, error } = await supabase
         .from("target_brokers")
         .select("*")
-        .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS"])
-        .order("created_at", { ascending: true })
-        .limit(10)
+        .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS", "FAILED", "BLOCKED_BOUNCE_RISK"])
+        .order("priority_score", { ascending: true }) // Batch order
+        .limit(20)
 
-      if (error) {
-        console.error("[v0] Supabase Error:", error)
-        throw error
-      }
-
-      console.log("[v0] Received", data?.length || 0, "targets from Supabase")
+      if (error) throw error
 
       if (!data || data.length === 0) {
         setTargets([])
         return
       }
 
-      const mappedTargets = data.map((target: any) => ({
-        id: target.id,
-        contactName: target.full_name,
-        title: target.role,
-        company: target.firm,
-        linkedinUrl: target.linkedin_url || "",
-        email: target.work_email,
-        confidenceScore: 85, // Default confidence score
-        aiRationale: target.dossiers?.ai_insight || "High-value target based on recent activity",
-        businessPersona: {
-          type: "Strategic Partner",
-          description: target.dossiers?.persona_summary || "Relationship-focused decision maker",
-          decisionStyle: "Consultative",
-          communicationPreference: "Email and scheduled calls",
-        },
-        dossier: {
-          companySize: target.dossiers?.firm_size || "Unknown",
-          industry: target.dossiers?.industry || "Insurance",
-          recentActivity: target.dossiers?.recent_signals || [],
-          painPoints: target.dossiers?.pain_points || [],
-          opportunityScore: target.dossiers?.opportunity_score || 75,
-        },
-        draft: {
-          subject: target.dossiers?.draft_subject || `Following up - ${target.full_name}`,
-          body:
-            target.dossiers?.draft_body ||
-            `Hi ${target.full_name.split(" ")[0]},\n\nI wanted to reach out regarding...`,
-          tone: "Professional, personalized",
-          wordCount: target.dossiers?.draft_body?.split(" ").length || 50,
-        },
-        status: "pending" as const,
+      const mappedTargets: TargetInterface[] = data.map((t: any) => ({
+        id: t.id,
+        contactName: t.full_name,
+        title: t.role,
+        company: t.firm,
+        linkedinUrl: t.linkedin_url || "",
+        email: t.work_email,
+        confidenceScore: 85,
+        aiRationale: t.dossiers?.ai_insight || "High-value target.",
+        status: t.status === "FAILED" || t.status === "BLOCKED_BOUNCE_RISK" ? "failed" : "pending",
+        profileImage: t.linkedin_image_url || t.profile_image,
+
+        // Placeholders until full fetch
+        dossier: { recentSignals: [], recentActivity: [] },
+        draft: { subject: "", body: "", tone: "Professional", wordCount: 0 },
+        broker: {
+          name: t.full_name,
+          firm: t.firm,
+          title: t.role,
+          provenance: {
+            confidence: 85,
+            source_file: "Loading...",
+            source_row: 0,
+            last_enriched: "",
+            liveness_status: "checking",
+            signal_count: 0
+          }
+        }
       }))
 
       setTargets(mappedTargets)
       if (mappedTargets.length > 0) {
         setSelectedTargetId(mappedTargets[0].id)
+        // Trigger fetch for first item
+        fetchCandidateDetails(mappedTargets[0].id)
       }
     } catch (error) {
-      console.error("[v0] Failed to load briefing targets:", error)
+      console.error("Failed to load targets:", error)
     } finally {
       setIsLoading(false)
     }
   }
 
+  // 2. Full Detail Fetch (The "Trust" Fix)
+  const fetchCandidateDetails = async (id: string) => {
+    try {
+      const res = await fetch(`/api/scout/candidates/${id}`)
+      if (!res.ok) throw new Error("Failed to fetch details")
+
+      const detail = await res.json()
+
+      console.log(`[DOSSIER_FETCH] ID: ${id} | Provenance Loaded.`)
+
+      // UPDATE STATE (Hard Replace of data fields)
+      setTargets(prev => prev.map(t => {
+        if (t.id !== id) return t
+
+        // Map API response to Component State
+        const signals = detail.signals || []
+        const signalSummaries = signals.map((s: any) => `${s.type}: ${s.summary}`)
+
+        return {
+          ...t,
+          dossier: {
+            ...t.dossier,
+            recentSignals: signalSummaries,
+            structuredSignals: signals,
+            notes: detail.dossier?.notes
+          },
+          draft: {
+            id: detail.draft.id,
+            subject: detail.draft.subject,
+            body: detail.draft.body,
+            tone: "Personalized", // Derived or fixed
+            wordCount: detail.draft.body ? detail.draft.body.split(" ").length : 0
+          },
+          broker: {
+            ...t.broker,
+            provenance: {
+              ...detail.provenance,
+              confidence: detail.confidence_score
+            }
+          },
+          // Sync status just in case
+          status: detail.status === "FAILED" || detail.status.includes("BLOCK") ? "failed" : t.status
+        }
+      }))
+    } catch (e) {
+      console.error("Detail fetch failed", e)
+    }
+  }
+
+  // Effect: Fetch details when selection changes
+  useEffect(() => {
+    if (selectedTargetId) {
+      fetchCandidateDetails(selectedTargetId)
+    }
+  }, [selectedTargetId])
+
+
+  // 3. Action Handlers (Single Pipe)
+  const handleAction = async (id: string, action: string, comments: string = "") => {
+    setIsProcessing(true)
+    try {
+      const res = await fetch("/api/scout/drafts/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate_id: id,
+          action: action,
+          user_comments: comments
+        })
+      })
+
+      if (!res.ok) throw new Error("Action failed")
+
+      const result = await res.json()
+
+      // Handle Synchronous Regenerate
+      if (action === "REGENERATE" && result.draft) {
+        setTargets(prev => prev.map(t => {
+          if (t.id !== id) return t
+          return {
+            ...t,
+            draft: {
+              ...t.draft,
+              id: result.draft.id,
+              subject: result.draft.subject,
+              body: result.draft.body,
+              wordCount: result.draft.body.split(" ").length
+            }
+          }
+        }))
+        // Toast success? Using simple visual cue for now
+      }
+      // Handle Status Updates
+      else {
+        const newStatus = action === "APPROVE" ? "approved" : "rejected"
+        setTargets(prev => prev.map(t => (t.id === id ? { ...t, status: newStatus } : t)))
+      }
+
+    } catch (e) {
+      console.error("Action error", e)
+      alert("Action failed. Check console.")
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const selectedTarget = targets.find((t) => t.id === selectedTargetId)
 
-  const handleApprove = async (targetId: string) => {
-    try {
-      await fetch("/api/scout/drafts/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dossier_id: targetId,
-          action: "approved",
-        }),
-      })
-      setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "approved" } : t)))
-    } catch (error) {
-      console.error("[v0] Failed to approve draft:", error)
-    }
-  }
-
-  const handleReject = async (targetId: string) => {
-    try {
-      await fetch("/api/scout/drafts/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dossier_id: targetId,
-          action: "dismissed",
-        }),
-      })
-      setTargets(targets.map((t) => (t.id === targetId ? { ...t, status: "rejected" } : t)))
-    } catch (error) {
-      console.error("[v0] Failed to reject draft:", error)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
@@ -199,127 +292,93 @@ export function MorningCoffeeDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Badge variant="secondary" className="gap-2">
-                <DollarSign className="w-3.5 h-3.5" />
-                {targets.length} targets
-              </Badge>
-              <Badge variant="outline" className="gap-2">
-                <Sparkles className="w-3.5 h-3.5" />
-                Gemini
-              </Badge>
+              <Badge variant="secondary" className="gap-2">Total: {targets.length}</Badge>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Two Panel Layout */}
+      {/* Main Content */}
       <div className="container mx-auto px-6 py-6">
         {isLoading ? (
-          <div className="flex items-center justify-center h-[calc(100vh-140px)]">
-            <p className="text-muted-foreground">Loading targets...</p>
-          </div>
+          <div className="flex justify-center p-12 text-muted-foreground">Loading Batch...</div>
         ) : (
           <div className="grid grid-cols-12 gap-6 h-[calc(100vh-140px)]">
-            {/* Left Panel - Target List */}
-            <div className="col-span-5 overflow-y-auto space-y-3 pr-2">
+
+            {/* LEFT: List */}
+            <div className="col-span-5 overflow-y-auto space-y-3 pr-2 pb-20">
               {targets.map((target) => (
                 <Card
                   key={target.id}
-                  className={`p-4 cursor-pointer transition-all hover:border-primary/50 ${
-                    selectedTargetId === target.id ? "border-primary bg-card/80" : "border-border bg-card/40"
-                  }`}
+                  className={`p-4 cursor-pointer transition-all hover:border-primary/50 relative ${selectedTargetId === target.id ? "border-primary bg-card/80" : "border-border bg-card/40"
+                    }`}
                   onClick={() => {
                     setSelectedTargetId(target.id)
                     setActiveTab("draft")
                   }}
                 >
-                  <div className="flex gap-4">
-                    <TargetAvatar name={target.contactName} company={target.company} linkedinUrl={target.linkedinUrl} />
+                  {/* FAILED Status Overlay/Indicator */}
+                  {target.status === "failed" && (
+                    <div className="absolute right-2 top-2">
+                      <Badge variant="destructive" className="flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Blocked
+                      </Badge>
+                    </div>
+                  )}
 
-                    {/* Contact Info */}
+                  <div className="flex gap-4">
+                    <TargetAvatar name={target.contactName} company={target.company} linkedinUrl={target.linkedinUrl} profileImage={target.profileImage} />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <h3 className="font-semibold text-foreground truncate">{target.contactName}</h3>
-                        <Badge
-                          variant={
-                            target.status === "approved"
-                              ? "default"
-                              : target.status === "rejected"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                          className="shrink-0 text-xs"
-                        >
-                          {target.confidenceScore}%
-                        </Badge>
-                      </div>
+                      <h3 className="font-semibold text-foreground truncate">{target.contactName}</h3>
                       <p className="text-sm text-muted-foreground truncate">{target.title}</p>
                       <p className="text-sm text-muted-foreground truncate flex items-center gap-1.5 mt-0.5">
                         <Building2 className="w-3.5 h-3.5" />
                         {target.company}
                       </p>
-
-                      {/* Quick Actions */}
-                      <div className="flex gap-2 mt-3">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 text-xs h-8 bg-transparent"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedTargetId(target.id)
-                            setActiveTab("dossier")
-                          }}
-                        >
-                          <FileText className="w-3.5 h-3.5 mr-1.5" />
-                          View Dossier
-                        </Button>
-                      </div>
                     </div>
                   </div>
                 </Card>
               ))}
             </div>
 
-            {/* Right Panel - Detail View */}
-            <div className="col-span-7 overflow-y-auto">
+            {/* RIGHT: Detail */}
+            <div className="col-span-7 overflow-y-auto pb-20">
               {selectedTarget && (
                 <div className="space-y-4">
-                  {/* Target Header */}
+                  {/* Selected Header */}
                   <Card className="p-6 bg-card/60">
                     <div className="flex items-start gap-4">
                       <TargetAvatar
                         name={selectedTarget.contactName}
                         company={selectedTarget.company}
                         linkedinUrl={selectedTarget.linkedinUrl}
+                        profileImage={selectedTarget.profileImage}
                       />
                       <div className="flex-1">
                         <h2 className="text-xl font-semibold text-foreground mb-1">{selectedTarget.contactName}</h2>
                         <p className="text-muted-foreground mb-2">{selectedTarget.title}</p>
+
+                        {/* Status Warning Inline */}
+                        {selectedTarget.status === "failed" && (
+                          <div className="p-2 bg-destructive/10 text-destructive text-sm rounded mb-2 border border-destructive/20">
+                            <strong>Liveness Check Failed:</strong> Verify employment status manually.
+                          </div>
+                        )}
+
                         <div className="flex items-center gap-3 text-sm">
-                          <a
-                            href={`mailto:${selectedTarget.email}`}
-                            className="flex items-center gap-1.5 text-primary hover:underline"
-                          >
-                            <Mail className="w-4 h-4" />
-                            Email
+                          <a href={`mailto:${selectedTarget.email}`} className="flex items-center gap-1.5 text-primary hover:underline">
+                            <Mail className="w-4 h-4" /> Email
                           </a>
                           {selectedTarget.linkedinUrl && (
-                            <a
-                              href={selectedTarget.linkedinUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 text-primary hover:underline"
-                            >
-                              <Linkedin className="w-4 h-4" />
-                              LinkedIn
+                            <a href={selectedTarget.linkedinUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-primary hover:underline">
+                              <Linkedin className="w-4 h-4" /> LinkedIn
                             </a>
                           )}
                         </div>
                       </div>
                       <Badge variant="secondary" className="gap-2">
                         <TrendingUp className="w-3.5 h-3.5" />
-                        {selectedTarget.confidenceScore}% confidence
+                        {selectedTarget.confidenceScore}% match
                       </Badge>
                     </div>
                   </Card>
@@ -327,223 +386,72 @@ export function MorningCoffeeDashboard() {
                   {/* Tabs */}
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "draft" | "dossier")}>
                     <TabsList className="grid w-full grid-cols-2">
-                      <TabsTrigger value="draft">Review Draft</TabsTrigger>
+                      <TabsTrigger value="draft">Draft Review</TabsTrigger>
                       <TabsTrigger value="dossier">Full Dossier</TabsTrigger>
                     </TabsList>
 
-                    {/* Draft Tab */}
                     <TabsContent value="draft" className="space-y-4 mt-4">
-                      {/* AI Rationale */}
+                      {/* Context Rationale */}
                       <Card className="p-4 bg-primary/5 border-primary/20">
                         <div className="flex gap-3">
                           <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                           <div>
-                            <h3 className="font-medium text-foreground mb-1">Why this target?</h3>
+                            <h3 className="font-medium text-foreground mb-1">Context</h3>
                             <p className="text-sm text-muted-foreground">{selectedTarget.aiRationale}</p>
                           </div>
                         </div>
                       </Card>
 
-                      {/* Draft Content */}
+                      {/* Draft Body */}
                       <Card className="p-6 bg-card/60">
                         <div className="space-y-4">
                           <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Subject Line
-                            </label>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subject</label>
                             <p className="text-foreground font-medium mt-1.5">{selectedTarget.draft.subject}</p>
                           </div>
                           <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                              Email Body
-                            </label>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Body</label>
                             <div className="mt-1.5 text-foreground whitespace-pre-wrap leading-relaxed">
                               {selectedTarget.draft.body}
                             </div>
-                          </div>
-                          <div className="flex gap-4 pt-2 text-xs text-muted-foreground">
-                            <span>Tone: {selectedTarget.draft.tone}</span>
-                            <span>•</span>
-                            <span>{selectedTarget.draft.wordCount} words</span>
                           </div>
                         </div>
                       </Card>
 
                       {/* Actions */}
                       <Card className="p-4 bg-card/40">
-                        <div className="flex gap-3">
+                        <div className="flex gap-2">
                           <Button
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleApprove(selectedTarget.id)}
-                            disabled={selectedTarget.status === "approved"}
+                            onClick={() => handleAction(selectedTarget.id, "APPROVE")}
+                            disabled={selectedTarget.status === "approved" || selectedTarget.status === "failed" || isProcessing}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
-                            {selectedTarget.status === "approved" ? "Approved" : "Approve (Queue for Outbox)"}
-                          </Button>
-                          <Button variant="outline" className="flex-1 bg-transparent">
-                            <Edit3 className="w-4 h-4 mr-1.5" />
-                            Edit Draft
-                          </Button>
-                          <Button variant="outline">
-                            <Sparkles className="w-4 h-4 mr-1.5" />
-                            Magic Polish
+                            Approve
                           </Button>
                           <Button
                             variant="outline"
-                            className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
-                            onClick={() => handleReject(selectedTarget.id)}
+                            onClick={() => handleAction(selectedTarget.id, "REGENERATE", "User requested refresh")}
+                            disabled={isProcessing}
                           >
-                            <X className="w-4 h-4 mr-1.5" />
-                            Reject
+                            <RefreshCw className={`w-4 h-4 mr-2 ${isProcessing ? "animate-spin" : ""}`} />
+                            Regenerate
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleAction(selectedTarget.id, "DISMISS")}
+                            disabled={selectedTarget.status === "rejected" || isProcessing}
+                          >
+                            <X className="w-4 h-4 mr-2" />
+                            Dismiss
                           </Button>
                         </div>
                       </Card>
                     </TabsContent>
 
-                    {/* Dossier Tab */}
-                    <TabsContent value="dossier" className="space-y-4 mt-4">
-                      {/* Business Persona */}
-                      <Card className="p-6 bg-card/60">
-                        <div className="flex items-start gap-3 mb-4">
-                          <Users className="w-5 h-5 text-primary mt-0.5" />
-                          <div>
-                            <h3 className="font-semibold text-foreground mb-1">Business Persona</h3>
-                            <Badge variant="secondary" className="mb-3">
-                              {selectedTarget.businessPersona.type}
-                            </Badge>
-                            <p className="text-sm text-muted-foreground mb-4">
-                              {selectedTarget.businessPersona.description}
-                            </p>
-                            <div className="space-y-3">
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                  Decision Style
-                                </label>
-                                <p className="text-sm text-foreground mt-1">
-                                  {selectedTarget.businessPersona.decisionStyle}
-                                </p>
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                  Communication Preference
-                                </label>
-                                <p className="text-sm text-foreground mt-1">
-                                  {selectedTarget.businessPersona.communicationPreference}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Company Intelligence */}
-                      <Card className="p-6 bg-card/60">
-                        <div className="flex items-start gap-3 mb-4">
-                          <Building2 className="w-5 h-5 text-primary mt-0.5" />
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground mb-3">Company Intelligence</h3>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                  Company Size
-                                </label>
-                                <p className="text-sm text-foreground mt-1">{selectedTarget.dossier.companySize}</p>
-                              </div>
-                              <div>
-                                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                  Industry
-                                </label>
-                                <p className="text-sm text-foreground mt-1">{selectedTarget.dossier.industry}</p>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
-                                Opportunity Score
-                              </label>
-                              <div className="flex items-center gap-3">
-                                <div className="flex-1 bg-muted rounded-full h-2">
-                                  <div
-                                    className="bg-primary h-2 rounded-full transition-all"
-                                    style={{ width: `${selectedTarget.dossier.opportunityScore}%` }}
-                                  />
-                                </div>
-                                <span className="text-sm font-semibold text-foreground">
-                                  {selectedTarget.dossier.opportunityScore}%
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Recent Activity */}
-                      <Card className="p-6 bg-card/60">
-                        <div className="flex items-start gap-3">
-                          <Clock className="w-5 h-5 text-primary mt-0.5" />
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground mb-3">Recent Activity</h3>
-                            <ul className="space-y-2">
-                              {selectedTarget.dossier.recentActivity.map((activity, idx) => (
-                                <li key={idx} className="flex gap-2 text-sm text-muted-foreground">
-                                  <span className="text-primary mt-1">•</span>
-                                  <span>{activity}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Pain Points */}
-                      <Card className="p-6 bg-card/60">
-                        <div className="flex items-start gap-3">
-                          <AlertCircle className="w-5 h-5 text-primary mt-0.5" />
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-foreground mb-3">Identified Pain Points</h3>
-                            <ul className="space-y-2">
-                              {selectedTarget.dossier.painPoints.map((pain, idx) => (
-                                <li key={idx} className="flex gap-2 text-sm text-muted-foreground">
-                                  <span className="text-primary mt-1">•</span>
-                                  <span>{pain}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        </div>
-                      </Card>
-
-                      {/* Dossier Actions */}
-                      <Card className="p-4 bg-card/40">
-                        <div className="flex gap-3">
-                          <Button
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => {
-                              handleApprove(selectedTarget.id)
-                              setActiveTab("draft")
-                            }}
-                            disabled={selectedTarget.status === "approved"}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Approve Draft
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 bg-transparent"
-                            onClick={() => setActiveTab("draft")}
-                          >
-                            <Edit3 className="w-4 h-4 mr-1.5" />
-                            Review & Edit Draft
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-destructive/50 text-destructive hover:bg-destructive/10 bg-transparent"
-                            onClick={() => handleReject(selectedTarget.id)}
-                          >
-                            <X className="w-4 h-4 mr-2" />
-                            Dismiss Target
-                          </Button>
-                        </div>
-                      </Card>
+                    <TabsContent value="dossier" className="mt-4">
+                      {/* Use the new DossierView Component which has Provenance Built-in */}
+                      <DossierView target={selectedTarget} />
                     </TabsContent>
                   </Tabs>
                 </div>
