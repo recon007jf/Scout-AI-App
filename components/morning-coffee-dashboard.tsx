@@ -9,6 +9,12 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useProfileImage } from "@/lib/hooks/use-profile-image"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { DossierView } from "./dossier-view"
+import RichAssetEditor from "@/components/rich-asset-editor"
+import { SignalBadge } from "@/components/signal-badge"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { useToast } from "@/components/ui/use-toast"
 import {
   Coffee,
   CheckCircle2,
@@ -65,6 +71,7 @@ export interface TargetInterface {
     id?: string
     subject: string
     body: string
+    htmlBody?: string
     tone: string
     wordCount: number
   }
@@ -100,6 +107,11 @@ export function MorningCoffeeDashboard() {
   const [activeTab, setActiveTab] = useState<"draft" | "dossier">("draft")
   const [isLoading, setIsLoading] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false) // For action buttons
+  const [isSaving, setIsSaving] = useState(false)
+  const [isRichMode, setIsRichMode] = useState(false)
+  const [validationError, setValidationError] = useState<string>("")
+
+  const { toast } = useToast()
 
   useEffect(() => {
     loadTargets()
@@ -107,51 +119,60 @@ export function MorningCoffeeDashboard() {
 
   // 1. Initial Load (List View) - Keeps payload light
   const loadTargets = async () => {
+    console.log("!!! MORNING DASHBOARD: loadTargets CALLED !!!")
     try {
       setIsLoading(true)
+
       const supabase = createBrowserClient()
 
-      // Fetch ACTIVE + PREVIOUS (Slicing handled by UI/Engine usually, but here we just grab recent)
+      // Fetch ACTIVE + PREVIOUS (POOL candidates for Alpha testing)
       // Including FAILED for visibility as requested
       const { data, error } = await supabase
-        .from("target_brokers")
+        .from("candidates")
         .select("*")
-        .in("status", ["ENRICHED", "DRAFT_READY", "READY_TO_PROCESS", "FAILED", "BLOCKED_BOUNCE_RISK"])
-        .order("priority_score", { ascending: true }) // Batch order
+        .in("status", ["QUEUED", "ENRICHED", "DRAFT_READY", "POOL", "FAILED", "BLOCKED_BOUNCE_RISK"])
+        .order("updated_at", { ascending: false })
         .limit(20)
 
       if (error) throw error
 
       if (!data || data.length === 0) {
+        console.warn("No candidates found in database")
         setTargets([])
         return
       }
 
       const mappedTargets: TargetInterface[] = data.map((t: any) => ({
         id: t.id,
-        contactName: t.full_name,
-        title: t.role,
-        company: t.firm,
-        linkedinUrl: t.linkedin_url || "",
-        email: t.work_email,
+        contactName: t.full_name || "Unknown",
+        title: t.title || t.role || "",
+        company: t.firm || "",
+        linkedinUrl: t.linkedin_url || t.linkedin || "",
+        email: t.email || t.work_email || "",
         confidenceScore: 85,
-        aiRationale: t.dossiers?.ai_insight || "High-value target.",
+        aiRationale: "High-value target in your pipeline.",
         status: t.status === "FAILED" || t.status === "BLOCKED_BOUNCE_RISK" ? "failed" : "pending",
-        profileImage: t.linkedin_image_url || t.profile_image,
+        profileImage: t.linkedin_image_url || t.profile_image || "",
 
         // Placeholders until full fetch
         dossier: { recentSignals: [], recentActivity: [] },
-        draft: { subject: "", body: "", tone: "Professional", wordCount: 0 },
+        draft: {
+          subject: t.draft_subject || "",
+          body: t.draft_body || "",
+          htmlBody: t.draft_html_body || "",
+          tone: "Professional",
+          wordCount: 0
+        },
         broker: {
-          name: t.full_name,
-          firm: t.firm,
-          title: t.role,
+          name: t.full_name || "Unknown",
+          firm: t.firm || "",
+          title: t.title || t.role || "",
           provenance: {
             confidence: 85,
-            source_file: "Loading...",
+            source_file: "Database",
             source_row: 0,
-            last_enriched: "",
-            liveness_status: "checking",
+            last_enriched: t.updated_at || "",
+            liveness_status: t.liveness_status || "unknown",
             signal_count: 0
           }
         }
@@ -200,6 +221,7 @@ export function MorningCoffeeDashboard() {
             id: detail.draft.id,
             subject: detail.draft.subject,
             body: detail.draft.body,
+            htmlBody: detail.draft.html_body,
             tone: "Personalized", // Derived or fixed
             wordCount: detail.draft.body ? detail.draft.body.split(" ").length : 0
           },
@@ -220,11 +242,76 @@ export function MorningCoffeeDashboard() {
   }
 
   // Effect: Fetch details when selection changes
+  // Effect: Fetch details when selection changes
   useEffect(() => {
+    setValidationError("") // Clear validation error on switch
     if (selectedTargetId) {
       fetchCandidateDetails(selectedTargetId)
     }
   }, [selectedTargetId])
+
+  // Detect Rich Mode from data
+  useEffect(() => {
+    if (selectedTargetId) {
+      const t = targets.find(t => t.id === selectedTargetId)
+      if (t && t.draft.htmlBody) {
+        setIsRichMode(true)
+      } else {
+        setIsRichMode(false)
+      }
+    }
+  }, [selectedTargetId, targets])
+
+  // 4. Draft Text Handlers
+  const handleDraftChange = (field: "body" | "subject" | "htmlBody", value: string) => {
+    setTargets(prev => prev.map(t => {
+      if (t.id !== selectedTargetId) return t
+      return {
+        ...t,
+        draft: {
+          ...t.draft,
+          [field]: value,
+          wordCount: field === "body" ? value.split(" ").length : t.draft.wordCount
+        }
+      }
+    }))
+  }
+
+  // 5. Save Draft
+  const saveDraft = async () => {
+    if (!selectedTargetId) return
+    const target = targets.find(t => t.id === selectedTargetId)
+    if (!target) return
+
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/targets/${selectedTargetId}/draft`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: target.draft.subject,
+          body: target.draft.body,
+          html_body: isRichMode ? target.draft.htmlBody : null
+        })
+      })
+
+      if (!res.ok) throw new Error("Save failed")
+
+      toast({
+        title: "Draft Saved",
+        description: "Your changes have been saved to the database.",
+      })
+    } catch (e) {
+      console.error("Save error", e)
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Could not save draft changes.",
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }
 
 
   // 3. Action Handlers (Single Pipe)
@@ -376,10 +463,20 @@ export function MorningCoffeeDashboard() {
                           )}
                         </div>
                       </div>
-                      <Badge variant="secondary" className="gap-2">
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        {selectedTarget.confidenceScore}% match
-                      </Badge>
+                      <div className="flex flex-col items-end gap-2">
+                        <SignalBadge
+                          status={selectedTarget.status}
+                          evidence={{
+                            lastActivity: selectedTarget.broker.provenance.last_enriched || "N/A",
+                            targetUrl: selectedTarget.linkedinUrl,
+                            sourceContext: selectedTarget.broker.provenance.source_file
+                          }}
+                        />
+                        <Badge variant="secondary" className="gap-2">
+                          <TrendingUp className="w-3.5 h-3.5" />
+                          {selectedTarget.confidenceScore}% match
+                        </Badge>
+                      </div>
                     </div>
                   </Card>
 
@@ -405,15 +502,59 @@ export function MorningCoffeeDashboard() {
                       {/* Draft Body */}
                       <Card className="p-6 bg-card/60">
                         <div className="space-y-4">
+                          <div className="flex items-center justify-between pb-2 border-b border-border/50">
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id="rich-mode"
+                                  checked={isRichMode}
+                                  onCheckedChange={setIsRichMode}
+                                />
+                                <Label htmlFor="rich-mode" className="text-sm font-medium">Rich Asset Mode</Label>
+                              </div>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              onClick={saveDraft}
+                              disabled={isSaving}
+                              variant="ghost"
+                              className="h-8 gap-2"
+                            >
+                              {isSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              {isSaving ? "Saving..." : "Save Draft"}
+                            </Button>
+                          </div>
+
                           <div>
                             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subject</label>
-                            <p className="text-foreground font-medium mt-1.5">{selectedTarget.draft.subject}</p>
+                            <Textarea
+                              className="mt-1.5 font-medium min-h-[40px] resize-none"
+                              value={selectedTarget.draft.subject}
+                              onChange={(e) => handleDraftChange("subject", e.target.value)}
+                            />
                           </div>
+
                           <div>
-                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Body</label>
-                            <div className="mt-1.5 text-foreground whitespace-pre-wrap leading-relaxed">
-                              {selectedTarget.draft.body}
-                            </div>
+                            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block">
+                              {isRichMode ? "Rich Content (HTML)" : "Body Text"}
+                            </label>
+
+                            {isRichMode ? (
+                              <RichAssetEditor
+                                key={selectedTarget.id} // Force remount on switch
+                                candidateId={selectedTarget.id}
+                                initialContent={selectedTarget.draft.htmlBody}
+                                onContentChange={(html) => handleDraftChange("htmlBody", html || "")}
+                                onValidationError={setValidationError}
+                              />
+                            ) : (
+                              <Textarea
+                                className="mt-1.5 min-h-[300px] font-mono text-sm leading-relaxed"
+                                value={selectedTarget.draft.body}
+                                onChange={(e) => handleDraftChange("body", e.target.value)}
+                              />
+                            )}
                           </div>
                         </div>
                       </Card>
@@ -424,11 +565,16 @@ export function MorningCoffeeDashboard() {
                           <Button
                             className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                             onClick={() => handleAction(selectedTarget.id, "APPROVE")}
-                            disabled={selectedTarget.status === "approved" || selectedTarget.status === "failed" || isProcessing}
+                            disabled={selectedTarget.status === "approved" || selectedTarget.status === "failed" || isProcessing || !!validationError}
                           >
                             <CheckCircle2 className="w-4 h-4 mr-2" />
                             Approve
                           </Button>
+                          {validationError && (
+                            <p className="text-xs text-destructive mt-1 text-center w-full col-span-3">
+                              ⚠️ Blocked: {validationError}
+                            </p>
+                          )}
                           <Button
                             variant="outline"
                             onClick={() => handleAction(selectedTarget.id, "REGENERATE", "User requested refresh")}
@@ -451,7 +597,34 @@ export function MorningCoffeeDashboard() {
 
                     <TabsContent value="dossier" className="mt-4">
                       {/* Use the new DossierView Component which has Provenance Built-in */}
-                      <DossierView target={selectedTarget} />
+                      <DossierView
+                        dossier={{
+                          id: selectedTarget.id,
+                          contact_name: selectedTarget.contactName,
+                          firm: selectedTarget.broker.firm,
+                          role: selectedTarget.title,
+                          linkedin_url: selectedTarget.linkedinUrl,
+                          confidence_score: selectedTarget.confidenceScore,
+                          status: selectedTarget.status,
+                          // Map sub-objects
+                          provenance: selectedTarget.broker.provenance,
+                          signals: selectedTarget.dossier.structuredSignals || [],
+                          // Legacy dossier fields
+                          dossier: {
+                            notes: selectedTarget.dossier.notes,
+                            companySize: selectedTarget.dossier.companySize,
+                            industry: selectedTarget.dossier.industry
+                          },
+                          draft: {
+                            id: selectedTarget.draft.id || "pending",
+                            subject: selectedTarget.draft.subject,
+                            body: selectedTarget.draft.body
+                          },
+                          commercial_context: undefined
+                        }}
+                        isLoading={false}
+                        error={null}
+                      />
                     </TabsContent>
                   </Tabs>
                 </div>

@@ -25,6 +25,7 @@ interface Signal {
   signalStrength: number
   replyText?: string
   isRead?: boolean
+  actionSuggested?: string  // LLM-generated action recommendation
 }
 
 const signalTypeConfig = {
@@ -76,18 +77,20 @@ export function SignalsView() {
         id: signal.id,
         type: signal.type.replace("_", "-") as Signal["type"],
         priority: signal.priority,
-        timestamp: new Date().toLocaleDateString(), // Mock time for now or parse existing
+        timestamp: new Date().toLocaleDateString(),
         contact: {
-          name: signal.contact.name, // Matched to mock structure
-          title: signal.contact.title,
-          company: signal.contact.company,
-          avatarUrl: signal.contact.avatarUrl,
+          name: signal.contact?.name || signal.contact?.full_name || "Unknown",
+          title: signal.contact?.title || signal.contact?.role || "",
+          company: signal.contact?.company || signal.contact?.firm || "Unknown",
+          avatarUrl: signal.contact?.avatarUrl,
         },
-        summary: signal.summary,
+        summary: signal.title || signal.summary || "New Signal",  // Use title as summary
         details: signal.details,
         actionable: signal.actionable,
-        signalStrength: signal.signalStrength,
+        signalStrength: signal.priority_score || signal.signalStrength || 50,
         isRead: signal.isRead || false,
+        replyText: signal.metadata?.raw_content || signal.replyText,
+        actionSuggested: signal.metadata?.action_suggested || null,
       }))
 
       setSignals(mappedSignals)
@@ -381,25 +384,51 @@ export function SignalsView() {
                     <div>
                       <h4 className="font-semibold text-foreground mb-1">Recommended Action</h4>
                       <p className="text-sm text-muted-foreground">
-                        This signal represents a high-value opportunity. Consider creating an outreach draft or adding
-                        to your Morning Briefing queue.
+                        {selectedSignal.actionSuggested || "Review this signal and determine appropriate follow-up."}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <Button className="gap-2" onClick={handleConvertToTarget}>
-                      <Users className="w-4 h-4" />
-                      Add to Target Queue
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="gap-2 bg-transparent"
-                      onClick={handleGenerateReply}
-                      disabled={isGeneratingReply}
-                    >
-                      {isGeneratingReply ? "Generating..." : "Create Draft"}
-                    </Button>
-                  </div>
+                  {/* Different buttons based on signal type */}
+                  {selectedSignal.type === "email-reply" ? (
+                    /* Email response signals - these came FROM the prospect */
+                    <div className="flex gap-3">
+                      {(selectedSignal.actionSuggested?.toLowerCase().includes("remove") ||
+                        selectedSignal.priority === "high" && selectedSignal.actionSuggested?.toLowerCase().includes("negative")) ? (
+                        <Button variant="destructive" className="gap-2" onClick={() => console.log("Mark as removed")}>
+                          <Users className="w-4 h-4" />
+                          Mark as Removed
+                        </Button>
+                      ) : (
+                        <Button className="gap-2" onClick={() => window.open("mailto:admin@pacificaisystems.com?subject=Hot Lead Follow-up: " + selectedSignal.contact.name, "_blank")}>
+                          <Mail className="w-4 h-4" />
+                          Forward to Andrew
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        className="gap-2 bg-transparent"
+                        onClick={() => console.log("Archive signal")}
+                      >
+                        Archive
+                      </Button>
+                    </div>
+                  ) : (
+                    /* Other signals (news, events, etc.) - can add to pipeline */
+                    <div className="flex gap-3">
+                      <Button className="gap-2" onClick={handleConvertToTarget}>
+                        <Users className="w-4 h-4" />
+                        Add to Target Queue
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-2 bg-transparent"
+                        onClick={handleGenerateReply}
+                        disabled={isGeneratingReply}
+                      >
+                        {isGeneratingReply ? "Generating..." : "Create Draft"}
+                      </Button>
+                    </div>
+                  )}
                 </Card>
               )}
 

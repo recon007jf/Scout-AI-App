@@ -15,8 +15,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useUser, useClerk } from "@clerk/nextjs"
+import { useUser, useClerk, useAuth } from "@clerk/nextjs"
 import { AIAgentPanel } from "@/components/ai-agent-panel"
+import { MorningPlanDashboard } from "@/components/morning-plan-dashboard"
 import { MorningBriefingDashboard } from "@/components/morning-briefing-dashboard"
 import { SignalsView } from "@/components/views/signals-view"
 import { NetworkView } from "@/components/views/network-view"
@@ -43,14 +44,41 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
   const router = useRouter()
   const { user: clerkUser, isLoaded } = useUser()
   const { signOut } = useClerk()
+  const { getToken } = useAuth()
 
+  // Wiring: Sync Clerk Token to LocalStorage for Legacy Client API
+  /* --- AUTH & TOKEN SYNC WIRING --- */
+  const [isTokenSynced, setIsTokenSynced] = useState(false)
+
+  // 1. Sync Clerk Token to LocalStorage (Critical for Legacy API Client)
   useEffect(() => {
-    if (!isLoaded) {
-      return
+    const syncToken = async () => {
+      if (!isLoaded) return // Wait for Clerk to load
+
+      try {
+        const token = await getToken()
+        if (token) {
+          localStorage.setItem("scout_auth_token", token)
+          console.log("[AppShell] Token synced to storage")
+        } else {
+          console.warn("[AppShell] No token available from Clerk")
+        }
+      } catch (e) {
+        console.error("[AppShell] Token Sync Failed", e)
+      } finally {
+        setIsTokenSynced(true) // Unblock rendering even if sync fails (graceful degradation)
+      }
     }
 
+    syncToken()
+  }, [isLoaded, getToken])
+
+  // 2. Auth State Check (Redirect if not authenticated)
+  useEffect(() => {
+    if (!isLoaded || !isTokenSynced) return // Wait for both Clerk and Token Sync
+
     if (!clerkUser) {
-      console.log("[v0 AppShell] No Clerk user found")
+      console.log("[AppShell] No Clerk user found, redirecting...")
       setIsCheckingAuth(false)
       return
     }
@@ -61,13 +89,28 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
     setUser({
       email,
       name,
-      role: "admin", // Temporary: will be fetched from database via API
+      role: "admin",
     })
 
     setIsCheckingAuth(false)
-  }, [clerkUser, isLoaded])
+  }, [clerkUser, isLoaded, isTokenSynced])
+
+
+  // BLOCK RENDERING until Token is Synced (Prevents 401 Race Conditions)
+  if (isCheckingAuth || !isTokenSynced) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black">
+        <div className="text-center">
+          <p className="text-muted-foreground">Initializing Scout...</p>
+        </div>
+      </div>
+    )
+  }
+
+
 
   const navigationItems = [
+    { id: "plan", label: "Daily Plan", icon: "/icons/morning-briefing.png", color: "emerald" },
     { id: "morning", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
     { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
     { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
@@ -123,6 +166,11 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
         bgActive: "bg-orange-900/50",
         bgHover: "hover:bg-orange-900/30",
       },
+      emerald: {
+        textActive: "text-emerald-400",
+        bgActive: "bg-emerald-900/50",
+        bgHover: "hover:bg-emerald-900/30",
+      },
     }
 
     return colorMap[color as keyof typeof colorMap] || colorMap.amber
@@ -139,6 +187,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
       rose: "bg-gradient-to-br from-rose-950/15 via-rose-950/5 to-transparent",
       cyan: "bg-gradient-to-br from-cyan-950/15 via-cyan-950/5 to-transparent",
       orange: "bg-gradient-to-br from-orange-950/15 via-orange-950/5 to-transparent",
+      emerald: "bg-gradient-to-br from-emerald-950/15 via-emerald-950/5 to-transparent",
     }
     return gradientMap[activeItem.color as keyof typeof gradientMap] || ""
   }
@@ -156,15 +205,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
     await signOut({ redirectUrl: "/sign-in" })
   }
 
-  if (isCheckingAuth) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-black">
-        <div className="text-center">
-          <p className="text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    )
-  }
+
 
   return (
     <div className="flex h-screen overflow-hidden bg-black">
@@ -188,7 +229,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
                   "relative w-18 h-18 rounded-xl flex items-center justify-center transition-all",
                   isActive ? colors.bgActive : `text-muted-foreground hover:${colors.bgHover}`,
                 )}
-                onClick={() => setActiveView(item.id)}
+                onClick={() => router.push(`/scout/${item.id}`)}
                 title={item.label}
               >
                 {typeof item.icon === "string" ? (
@@ -221,7 +262,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
             "w-18 h-18 rounded-xl flex items-center justify-center transition-all mt-auto",
             activeView === "settings" ? "text-gray-400 bg-gray-900/50" : "text-muted-foreground hover:bg-gray-900/30",
           )}
-          onClick={() => setActiveView("settings")}
+          onClick={() => router.push("/scout/settings")}
           title="Settings"
         >
           <img src="/icons/settings.png" className="w-10 h-10" alt="Settings" />
@@ -273,6 +314,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
 
         {/* Content */}
         <main className="relative flex-1 overflow-hidden flex flex-col">
+          {activeView === "plan" && <MorningPlanDashboard />}
           {activeView === "morning" && <MorningBriefingDashboard />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}

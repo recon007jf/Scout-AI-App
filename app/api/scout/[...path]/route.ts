@@ -16,10 +16,10 @@ async function handler(req: NextRequest, props: { params: Promise<{ path: string
         const { path } = params
 
         // Construct target URL
-        // e.g. /api/scout/outlook/auth-url -> https://backend.../api/scout/outlook/auth-url
-        // path is ["outlook", "auth-url"]
+        // Frontend: /api/scout/outreach/status -> Backend: /api/outreach/status
+        // path is ["outreach", "status"]
         const backendPath = path.join("/")
-        const targetUrl = new URL(`/api/scout/${backendPath}`, BACKEND_URL)
+        const targetUrl = new URL(`/api/${backendPath}`, BACKEND_URL)
 
         // Copy query params
         req.nextUrl.searchParams.forEach((value, key) => {

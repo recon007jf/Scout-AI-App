@@ -6,7 +6,9 @@
     "build": "node scripts/generate-build-info.js && next build",
     "dev": "node scripts/generate-build-info.js && next dev",
     "lint": "eslint .",
-    "start": "next start"
+    "start": "next start",
+    "test": "playwright test",
+    "test:hydration": "playwright test tests/hydration.spec.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.14.5",
@@ -68,10 +70,14 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^8.57.1",
+    "eslint-config-next": "^16.1.4",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",

@@ -8,16 +8,15 @@ const isPublicRoute = createRouteMatcher([
     "/login(.*)",
     "/signup(.*)",
     "/auth(.*)",
-    "/api/scout/outlook(.*)",
+    "/api/scout(.*)",
+    "/api/briefing(.*)",
+    "/api/outreach(.*)",
     "/api/outlook(.*)",
     "/health(.*)",
 ])
 
 export default clerkMiddleware(async (auth, req) => {
-    if (process.env.NODE_ENV === "development") {
-        return NextResponse.next()
-    }
-
+    // SECURITY: No dev bypass. Clerk is the sole identity source.
     if (isPublicRoute(req)) {
         return NextResponse.next()
     }

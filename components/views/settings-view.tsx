@@ -83,6 +83,23 @@ export function SettingsView({ initialTab, onMount }: { initialTab?: string; onM
     }
 
     loadProfileSettings()
+
+    // Auto-fetch Outlook connection status on mount
+    const fetchOutlookStatus = async () => {
+      try {
+        const response = await fetch('/api/scout/outreach/status')
+        if (response.ok) {
+          const data = await response.json()
+          if (typeof data.outlook_connected === 'boolean') {
+            setOutlookConnected(data.outlook_connected)
+            console.log("[v0] Outlook status fetched:", data.outlook_connected)
+          }
+        }
+      } catch (error) {
+        console.error("[v0] Failed to fetch Outlook status:", error)
+      }
+    }
+    fetchOutlookStatus()
   }, [initialTab, onMount])
 
   const handleOutlookToggle = async () => {

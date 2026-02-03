@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server"
-import { makeAuthenticatedRequest } from "@/lib/auth/service-account"
 
 export async function GET() {
   try {
-    console.log("[v0] Stage 1: Fetching /api/outreach/status")
+    // Check multiple env vars - NEXT_PUBLIC_ vars may not be available server-side in some cases
+    const backendUrl = process.env.BACKEND_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+    const url = `${backendUrl}/api/outreach/status`
 
-    const response = await makeAuthenticatedRequest("/api/outreach/status")
+    console.log("[v0] Fetching outreach status from:", url)
+
+    const response = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
     const data = await response.json()
-
     console.log("[v0] Outreach Status Response:", JSON.stringify(data, null, 2))
 
     if (response.ok) {

@@ -307,7 +307,8 @@ export async function getSignals(): Promise<Signal[]> {
     return new Promise((resolve) => setTimeout(() => resolve(mockSignals), 500))
   }
 
-  return apiRequest<Signal[]>("/api/signals")
+  const response = await apiRequest<{ signals: Signal[] }>("/api/signals")
+  return response.signals
 }
 
 /**
@@ -641,12 +642,15 @@ export async function getCurrentUser(): Promise<User | null> {
  * Endpoint: GET /api/scout/contacts
  */
 export async function getContacts(): Promise<any[]> {
-  // Mock removed.
-  const response = await apiRequest<ContactsResponse>("/api/scout/contacts?page=1&page_size=25", {
-    method: "GET",
+  // Route through Next.js proxy to avoid CORS issues
+  const response = await fetch("/api/scout/contacts?page=1&page_size=25", {
+    cache: 'no-store'
   })
-
-  return response.contacts
+  if (!response.ok) {
+    throw new Error(`Contacts fetch failed: ${response.statusText}`)
+  }
+  const data = await response.json()
+  return data.contacts || []
 }
 
 // ============================================================================

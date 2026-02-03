@@ -17,6 +17,7 @@ export interface MorningQueueTarget {
   draft: {
     subject: string
     body: string
+    richAssetHtml?: string  // Pre-made marketing HTML block
     tone: string
     wordCount: number
   } | null
@@ -145,11 +146,18 @@ function adaptBriefingTarget(t: BriefingTarget, batchNum: number): MorningQueueT
 
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   try {
-    // 1. Fetch from Authoritative Backend API
-    const response = await apiRequest<BriefingResponse>("/api/briefing")
+    // 1. Fetch from Authoritative Backend API via Next.js Proxy (injects Clerk token)
+    const response = await fetch("/api/briefing", { cache: 'no-store' })
+
+    if (!response.ok) {
+      console.error(`[Queue] Briefing API failed: ${response.status} ${response.statusText}`)
+      return []
+    }
+
+    const data: BriefingResponse = await response.json()
 
     // 2. Adapt to Legacy Interface
-    const rawTargets = response.targets || []
+    const rawTargets = data.targets || []
 
     if (rawTargets.length === 0) {
       console.log("[Queue] No briefing generated (API returned empty).")
