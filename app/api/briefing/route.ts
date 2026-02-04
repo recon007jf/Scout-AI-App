@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server"
 
 // Force dynamic to prevent caching
 export const dynamic = "force-dynamic"
+// Extend timeout for backend calls
+export const maxDuration = 60
 
 const IS_DEV = process.env.NODE_ENV === "development"
 const BACKEND_URL = IS_DEV

@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server"
 
 // Force dynamic to prevent caching of proxy requests
 export const dynamic = "force-dynamic"
+// Extend timeout for backend calls (hobby plan defaults to 10s)
+export const maxDuration = 60
 
 // Force localhost in development, otherwise use Env Var or Default to Prod
 const IS_DEV = process.env.NODE_ENV === "development"

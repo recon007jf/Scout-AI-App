@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { getApiBaseUrl } from "@/lib/api/client"
 
 // ============================================================================
 // TYPES
@@ -96,25 +97,19 @@ const stateColors: Record<string, string> = {
     CO: "bg-pink-500/20 text-pink-400",
 }
 
-// Mock initial regions (will be replaced with API call)
-const initialRegions: RegionData[] = [
-    { code: "NV", name: "Nevada", candidates: 25, enabled: true, reason: { label: "High lead freshness", type: "freshness" } },
-    { code: "CA", name: "California", candidates: 15, enabled: true, reason: { label: "High-intent signals", type: "intent" } },
-    { code: "OR", name: "Oregon", candidates: 10, enabled: true, reason: { label: "Renewal cluster", type: "renewal" } },
-    { code: "WA", name: "Washington", candidates: 0, enabled: false, reason: { label: "Budget cycle timing", type: "timing" } },
-    { code: "AZ", name: "Arizona", candidates: 0, enabled: false, reason: { label: "Strong relationships", type: "relationship" } },
-    { code: "CO", name: "Colorado", candidates: 0, enabled: false, reason: { label: "High-intent signals", type: "intent" } },
-    { code: "UT", name: "Utah", candidates: 0, enabled: false, reason: { label: "Renewal cluster", type: "renewal" } },
-    { code: "ID", name: "Idaho", candidates: 0, enabled: false, reason: { label: "High lead freshness", type: "freshness" } },
-]
+// Note: initialRegions and mockCandidates removed - now fetched from API
 
-// Mock candidates (will be replaced with API call)
-const mockCandidates: Candidate[] = Array.from({ length: 50 }, (_, i) => ({
-    id: `candidate-${i + 1}`,
-    name: `Candidate ${i + 1}`,
-    company: `Company ${i + 1}`,
-    state: ["NV", "CA", "OR"][i % 3],
-}))
+// State name mapping
+const STATE_NAMES: Record<string, string> = {
+    CA: "California",
+    NV: "Nevada",
+    OR: "Oregon",
+    WA: "Washington",
+    AZ: "Arizona",
+    CO: "Colorado",
+    UT: "Utah",
+    ID: "Idaho",
+}
 
 // ============================================================================
 // COMPONENT
@@ -126,8 +121,10 @@ export function MorningPlanDashboard() {
 
     // State
     const [planState, setPlanState] = useState<PlanState>("proposed")
-    const [regions, setRegions] = useState<RegionData[]>(initialRegions)
-    const [candidates, setCandidates] = useState<Candidate[]>(mockCandidates)
+    const [regions, setRegions] = useState<RegionData[]>([])
+    const [candidates, setCandidates] = useState<Candidate[]>([])
+    const [planId, setPlanId] = useState<string | null>(null)
+    const [strategyRationale, setStrategyRationale] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isApproving, setIsApproving] = useState(false)
 
@@ -156,20 +153,57 @@ export function MorningPlanDashboard() {
         const loadPlanData = async () => {
             setIsLoading(true)
             try {
-                // TODO: Replace with real API calls
-                // const [regionsRes, candidatesRes] = await Promise.all([
-                //   fetch('/api/regions/suggested'),
-                //   fetch('/api/candidates/daily?limit=50')
-                // ])
+                // Fetch real data from backend API
+                const token = typeof window !== "undefined" ? localStorage.getItem("scout_auth_token") : null
+                const response = await fetch(`${getApiBaseUrl()}/api/daily-plan`, {
+                    cache: 'no-store',
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(token && { Authorization: `Bearer ${token}` }),
+                    },
+                })
 
-                // For now, use mock data
-                await new Promise(resolve => setTimeout(resolve, 500))
-                setRegions(initialRegions)
-                setCandidates(mockCandidates)
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`)
+                }
+
+                const data = await response.json()
+
+                // Map API response to component state
+                setPlanId(data.id)
+                setPlanState(data.status as PlanState)
+                setStrategyRationale(data.strategy_rationale || [])
+
+                // Map region_constraints to RegionData array
+                const regionConstraints = data.region_constraints || {}
+                const regionMetadata = data.region_metadata || {}
+                const mappedRegions: RegionData[] = Object.entries(regionConstraints).map(([code, count]) => {
+                    const meta = regionMetadata[code]
+                    return {
+                        code,
+                        name: STATE_NAMES[code] || code,
+                        candidates: count as number,
+                        enabled: (count as number) > 0,
+                        reason: meta ? { label: meta.reason, type: (meta.reason_type || "freshness") as ReasonType } : undefined,
+                    }
+                })
+                setRegions(mappedRegions.length > 0 ? mappedRegions : [])
+
+                // Map candidates array
+                const mappedCandidates: Candidate[] = (data.candidates || []).map((c: any) => ({
+                    id: c.id,
+                    name: c.name,
+                    company: c.firm,
+                    state: c.state,
+                }))
+                setCandidates(mappedCandidates)
+
+                console.log("[MorningPlan] Loaded plan:", { planId: data.id, candidates: mappedCandidates.length, regions: mappedRegions })
             } catch (error) {
                 console.error("[MorningPlan] Failed to load data:", error)
                 toast({
                     title: "Failed to load plan data",
+                    description: String(error),
                     variant: "destructive",
                 })
             } finally {
@@ -256,18 +290,33 @@ export function MorningPlanDashboard() {
         setIsApproving(true)
 
         try {
-            // TODO: Replace with real API call
-            // await fetch('/api/daily-plan/approve', { method: 'POST', body: JSON.stringify({ regions, candidates }) })
+            // Call real API to approve plan
+            const token = typeof window !== "undefined" ? localStorage.getItem("scout_auth_token") : null
+            const response = await fetch(`${getApiBaseUrl()}/api/daily-plan/approve`, {
+                method: "POST",
+                cache: 'no-store',
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token && { Authorization: `Bearer ${token}` }),
+                },
+                body: JSON.stringify({}),
+            })
 
-            await new Promise(resolve => setTimeout(resolve, 1000))
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.detail || `API Error: ${response.status}`)
+            }
+
+            const data = await response.json()
+            console.log("[MorningPlan] Plan approved:", data)
 
             setPlanState("approved")
             toast({
                 title: "Plan approved!",
-                description: "Redirecting to drafts...",
+                description: `Generated ${data.strategy_rationale?.pop() || "drafts"}. Redirecting...`,
             })
 
-            // Navigate to existing morning briefing after short delay
+            // Navigate to morning briefing after short delay
             setTimeout(() => {
                 router.push("/scout/morning")
             }, 1500)
@@ -275,6 +324,7 @@ export function MorningPlanDashboard() {
             console.error("[MorningPlan] Approval failed:", error)
             toast({
                 title: "Approval failed",
+                description: String(error),
                 variant: "destructive",
             })
         } finally {
