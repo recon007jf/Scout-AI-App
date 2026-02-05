@@ -3,47 +3,39 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 const isPublicRoute = createRouteMatcher([
-    "/",
-    "/sign-in(.*)",
-    "/sign-up(.*)",
-    "/login(.*)",
-    "/signup(.*)",
-    "/auth(.*)",
-    "/api/scout(.*)",
-    "/api/briefing(.*)",
-    "/api/outreach(.*)",
-    "/api/outlook(.*)",
-    "/health(.*)",
-    "/__clerk(.*)",  // Proxy route is public
+    "/", "/sign-in(.*)", "/sign-up(.*)", "/login(.*)", "/signup(.*)",
+    "/auth(.*)", "/api/scout(.*)", "/api/briefing(.*)", "/api/outreach(.*)",
+    "/api/outlook(.*)", "/health(.*)", "/__clerk(.*)",
 ])
 
-// Clerk Frontend API Proxy - bypasses SSL certificate issues with CNAME
-function proxyMiddleware(req: NextRequest) {
+async function proxyMiddleware(req: NextRequest) {
     if (req.nextUrl.pathname.startsWith('/__clerk')) {
-        const proxyHeaders = new Headers(req.headers)
+        // Remove /__clerk prefix
+        const clerkPath = req.nextUrl.pathname.replace('/__clerk', '')
+        const clerkUrl = new URL(`https://frontend-api.clerk.dev${clerkPath}${req.nextUrl.search}`)
 
-        // Set required Clerk proxy headers
-        proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
-        proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
-
-        // Forward client IP
-        if (req.ip) {
-            proxyHeaders.set('X-Forwarded-For', req.ip)
-        } else {
-            proxyHeaders.set('X-Forwarded-For', req.headers.get('X-Forwarded-For') || '')
+        // Prepare headers for the forwarded request
+        const headers = new Headers(req.headers)
+        headers.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
+        headers.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
+        // Verify X-Forwarded-For is present (Next.js usually sets this, but good to be sure)
+        if (!headers.get('X-Forwarded-For') && req.ip) {
+            headers.set('X-Forwarded-For', req.ip)
         }
 
-        // Rewrite to Clerk's Frontend API
-        const proxyUrl = new URL(req.url)
-        proxyUrl.host = 'frontend-api.clerk.dev'
-        proxyUrl.port = '443'
-        proxyUrl.protocol = 'https'
-        proxyUrl.pathname = proxyUrl.pathname.replace('/__clerk', '')
+        // Forward the request to Clerk
+        const response = await fetch(clerkUrl.toString(), {
+            method: req.method,
+            headers: headers,
+            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
+            // @ts-ignore - duplex might be needed for some node versions/next implementations
+            duplex: 'half'
+        })
 
-        return NextResponse.rewrite(proxyUrl, {
-            request: {
-                headers: proxyHeaders,
-            },
+        // Return Clerk's response
+        return new NextResponse(response.body, {
+            status: response.status,
+            headers: response.headers,
         })
     }
     return null
@@ -51,15 +43,10 @@ function proxyMiddleware(req: NextRequest) {
 
 const clerkHandler = clerkMiddleware(
     async (auth, req) => {
-        // SECURITY: No dev bypass. Clerk is the sole identity source.
-        if (isPublicRoute(req)) {
-            return NextResponse.next()
-        }
-
+        if (isPublicRoute(req)) return NextResponse.next()
         await auth.protect()
     },
     {
-        // Allow these origins to use Clerk auth (fixes redirect loop on Vercel)
         authorizedParties: [
             "http://localhost:3000",
             "https://scout-ui.vercel.app",
@@ -69,22 +56,15 @@ const clerkHandler = clerkMiddleware(
     }
 )
 
-export default function middleware(req: NextRequest) {
-    // First check if it's a proxy request
-    const proxyResponse = proxyMiddleware(req)
-    if (proxyResponse) {
-        return proxyResponse
-    }
-
-    // Otherwise, use Clerk's middleware
+export default async function middleware(req: NextRequest) {
+    const proxyResponse = await proxyMiddleware(req)
+    if (proxyResponse) return proxyResponse
     return clerkHandler(req, {} as any)
 }
 
 export const config = {
     matcher: [
-        // Skip Next.js internals and all static files, unless found in search params
         "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-        // Always run for API routes AND the Clerk proxy
         "/(api|trpc|__clerk)(.*)",
     ],
 }
