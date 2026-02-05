@@ -10,29 +10,29 @@ const isPublicRoute = createRouteMatcher([
 
 async function proxyMiddleware(req: NextRequest) {
     if (req.nextUrl.pathname.startsWith('/__clerk')) {
-        // Remove /__clerk prefix
         const clerkPath = req.nextUrl.pathname.replace('/__clerk', '')
         const clerkUrl = new URL(`https://frontend-api.clerk.dev${clerkPath}${req.nextUrl.search}`)
 
-        // Prepare headers for the forwarded request
-        const headers = new Headers(req.headers)
-        headers.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
-        headers.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
-        // Verify X-Forwarded-For is present (Next.js usually sets this, but good to be sure)
-        if (!headers.get('X-Forwarded-For') && req.ip) {
-            headers.set('X-Forwarded-For', req.ip)
-        }
-
-        // Forward the request to Clerk
-        const response = await fetch(clerkUrl.toString(), {
-            method: req.method,
-            headers: headers,
-            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
-            // @ts-ignore - duplex might be needed for some node versions/next implementations
-            duplex: 'half'
+        // Forward headers with X-Forwarded-Host
+        const proxyHeaders = new Headers()
+        req.headers.forEach((value, key) => {
+            proxyHeaders.set(key, value)
         })
 
-        // Return Clerk's response
+        // Explicitly set forwarded host so Clerk knows the original domain
+        proxyHeaders.set('X-Forwarded-Host', req.nextUrl.host)
+        proxyHeaders.set('X-Forwarded-Proto', 'https')
+        // Ensure required Clerk proxy headers are also set
+        proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
+        proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
+
+
+        const response = await fetch(clerkUrl.toString(), {
+            method: req.method,
+            headers: proxyHeaders,
+            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
+        })
+
         return new NextResponse(response.body, {
             status: response.status,
             headers: response.headers,
