@@ -10,8 +10,13 @@ const isPublicRoute = createRouteMatcher([
 
 async function proxyMiddleware(req: NextRequest) {
     if (req.nextUrl.pathname.startsWith('/__clerk')) {
+        console.log(`[Clerk Proxy] Handling request: ${req.method} ${req.nextUrl.pathname}`)
+
+        // Remove /__clerk prefix
         const clerkPath = req.nextUrl.pathname.replace('/__clerk', '')
         const clerkUrl = new URL(`https://frontend-api.clerk.dev${clerkPath}${req.nextUrl.search}`)
+
+        console.log(`[Clerk Proxy] Target URL: ${clerkUrl.toString()}`)
 
         // Forward headers with X-Forwarded-Host
         const proxyHeaders = new Headers()
@@ -26,17 +31,25 @@ async function proxyMiddleware(req: NextRequest) {
         proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
         proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
 
+        console.log(`[Clerk Proxy] Headers prepared. Host: ${req.nextUrl.host}, PROXY_URL: ${proxyHeaders.get('Clerk-Proxy-Url')}`)
 
-        const response = await fetch(clerkUrl.toString(), {
-            method: req.method,
-            headers: proxyHeaders,
-            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
-        })
+        try {
+            const response = await fetch(clerkUrl.toString(), {
+                method: req.method,
+                headers: proxyHeaders,
+                body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.text() : undefined,
+            })
 
-        return new NextResponse(response.body, {
-            status: response.status,
-            headers: response.headers,
-        })
+            console.log(`[Clerk Proxy] Response received: ${response.status}`)
+
+            return new NextResponse(response.body, {
+                status: response.status,
+                headers: response.headers,
+            })
+        } catch (error) {
+            console.error(`[Clerk Proxy] Error fetching from Clerk:`, error)
+            return NextResponse.json({ error: 'Proxy Error' }, { status: 500 })
+        }
     }
     return null
 }
@@ -65,6 +78,7 @@ export default async function middleware(req: NextRequest) {
 export const config = {
     matcher: [
         "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-        "/(api|trpc|__clerk)(.*)",
+        "/__clerk(.*)",
+        "/(api|trpc)(.*)",
     ],
 }
