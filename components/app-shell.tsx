@@ -28,7 +28,7 @@ import { PerformanceView } from "@/components/views/performance-view"
 import { GlobalSearch } from "@/components/global-search"
 import { useRouter } from "next/navigation"
 import { SettingsView } from "@/components/views/settings-view"
-import { Menu } from "lucide-react" // Fixed import to use lucide-react
+import { Menu, Send } from "lucide-react" // Fixed import to use lucide-react
 
 interface AppShellProps {
   children?: React.ReactNode
@@ -56,7 +56,8 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
       if (!isLoaded) return // Wait for Clerk to load
 
       try {
-        const token = await getToken()
+        const getTokenResult = await getToken()
+        const token = getTokenResult
         if (token) {
           localStorage.setItem("scout_auth_token", token)
           console.log("[AppShell] Token synced to storage")
@@ -110,8 +111,8 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
 
 
   const navigationItems = [
-    { id: "plan", label: "Daily Plan", icon: "/icons/morning-briefing.png", color: "emerald" },
-    { id: "morning", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "amber" },
+    { id: "plan", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "emerald" },
+    { id: "morning", label: "Daily Outreach", icon: Send, color: "amber" },
     { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
     { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
     { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
