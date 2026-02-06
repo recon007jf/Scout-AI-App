@@ -318,7 +318,7 @@ export function MorningPlanDashboard() {
 
             // Navigate to morning briefing after short delay
             setTimeout(() => {
-                router.push("/scout/morning")
+                router.push("/scout/daily-outreach")
             }, 1500)
         } catch (error) {
             console.error("[MorningPlan] Approval failed:", error)

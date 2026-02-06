@@ -10,5 +10,5 @@ export default async function Page() {
   }
 
   // Redirect root to canonical dashboard
-  redirect("/scout/morning")
+  redirect("/scout/morning-briefing")
 }
