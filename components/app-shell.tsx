@@ -213,8 +213,8 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
       {/* Left Sidebar Navigation */}
       <aside className="w-20 border-r border-border bg-gradient-to-b from-zinc-950/80 via-zinc-950/60 to-zinc-950/40 flex flex-col items-center py-6 gap-6 overflow-y-auto">
         {/* Logo */}
-        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-          <Menu className="w-8 h-8 text-primary" />
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-2">
+          <img src="/scout-logo.png" className="w-12 h-12 rounded-xl" alt="Scout" />
         </div>
 
         {/* Navigation Items */}
