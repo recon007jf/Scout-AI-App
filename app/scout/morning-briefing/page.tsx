@@ -8,5 +8,5 @@ export default async function PlanPage() {
         redirect("/sign-in")
     }
 
-    return <AppShell initialView="plan" />
+    return <AppShell initialView="morning-briefing" />
 }

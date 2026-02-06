@@ -35,7 +35,7 @@ interface AppShellProps {
   initialView?: string
 }
 
-export function AppShell({ children, initialView = "morning" }: AppShellProps) {
+export function AppShell({ children, initialView = "morning-briefing" }: AppShellProps) {
   const [activeView, setActiveView] = useState<string>(initialView)
   const [user, setUser] = useState<{ email: string; name: string; role?: string } | null>(null)
   const [currentDay, setCurrentDay] = useState<number>(new Date().getDate())
@@ -111,8 +111,8 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
 
 
   const navigationItems = [
-    { id: "plan", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "emerald" },
-    { id: "morning", label: "Daily Outreach", icon: Send, color: "amber" },
+    { id: "morning-briefing", label: "Morning Briefing", icon: "/icons/morning-briefing.png", color: "emerald" }, // Was plan
+    { id: "daily-outreach", label: "Daily Outreach", icon: Send, color: "amber" }, // Was morning
     { id: "signals", label: "Signals", icon: "/icons/signals.png", color: "green" },
     { id: "network", label: "Network", icon: "/icons/ledger.png", color: "blue" },
     { id: "territory", label: "Territory", icon: "/icons/map-view.png", color: "purple" },
@@ -251,6 +251,7 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
                   React.createElement(item.icon, {
                     className: "w-10 h-10 transition-all",
                     style: { opacity: isActive ? 1 : 0.6 },
+                    strokeWidth: 1.5
                   })
                 )}
               </button>
@@ -315,8 +316,8 @@ export function AppShell({ children, initialView = "morning" }: AppShellProps) {
 
         {/* Content */}
         <main className="relative flex-1 overflow-hidden flex flex-col">
-          {activeView === "plan" && <MorningPlanDashboard />}
-          {activeView === "morning" && <MorningBriefingDashboard />}
+          {activeView === "morning-briefing" && <MorningPlanDashboard />}
+          {activeView === "daily-outreach" && <MorningBriefingDashboard />}
           {activeView === "signals" && <SignalsView />}
           {activeView === "network" && <NetworkView />}
           {activeView === "territory" && <TerritoryView />}

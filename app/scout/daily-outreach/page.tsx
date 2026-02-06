@@ -9,5 +9,5 @@ export default async function MorningBriefingPage() {
         redirect("/sign-in")
     }
 
-    return <AppShell initialView="morning" />
+    return <AppShell initialView="daily-outreach" />
 }
