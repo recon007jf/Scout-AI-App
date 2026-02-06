@@ -328,7 +328,7 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
           {["signals", "network", "territory", "calendar", "performance", "notes"].includes(activeView) && (
             <div className="relative flex-1 overflow-hidden flex flex-col">
               {/* Watermark overlay */}
-              <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
+              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
                 <span
                   className="text-[5rem] md:text-[7rem] font-black uppercase tracking-widest text-white/[0.07] select-none whitespace-nowrap leading-tight text-center"
                   style={{ transform: "rotate(-25deg)" }}
