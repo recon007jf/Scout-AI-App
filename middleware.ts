@@ -15,6 +15,11 @@ function proxyMiddleware(req: any) {
         proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || '')
         proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
 
+        // CRITICAL: Tell Clerk the original host (fixes host_invalid error)
+        proxyHeaders.set('X-Forwarded-Host', 'scout-ai-app.com')
+        proxyHeaders.set('X-Forwarded-Proto', 'https')
+        proxyHeaders.set('Origin', 'https://scout-ai-app.com')
+
         // Get client IP for rate limiting
         if (req.ip) {
             proxyHeaders.set('X-Forwarded-For', req.ip)
