@@ -8,34 +8,58 @@ const isPublicRoute = createRouteMatcher([
 ])
 
 // PROXY MIDDLEWARE: Routes /__clerk/* to Clerk's Frontend API
-// This bypasses the broken clerk.scout-ai-app.com SSL by using Vercel's SSL
-function proxyMiddleware(req: any) {
+// Uses fetch() instead of rewrite() for proper header control
+async function proxyMiddleware(req: any) {
     if (req.nextUrl.pathname.startsWith('/__clerk')) {
-        const proxyHeaders = new Headers(req.headers)
-        proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || '')
-        proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
+        try {
+            // Build the target URL
+            const targetPath = req.nextUrl.pathname.replace('/__clerk', '') || '/'
+            const targetUrl = `https://frontend-api.clerk.dev${targetPath}${req.nextUrl.search}`
 
-        // CRITICAL: Tell Clerk the original host (fixes host_invalid error)
-        proxyHeaders.set('X-Forwarded-Host', 'scout-ai-app.com')
-        proxyHeaders.set('X-Forwarded-Proto', 'https')
-        proxyHeaders.set('Origin', 'https://scout-ai-app.com')
+            // Build headers with proper Host override
+            const proxyHeaders = new Headers()
 
-        // Get client IP for rate limiting
-        if (req.ip) {
-            proxyHeaders.set('X-Forwarded-For', req.ip)
-        } else {
-            proxyHeaders.set('X-Forwarded-For', req.headers.get('X-Forwarded-For') || '')
+            // Copy original headers
+            req.headers.forEach((value: string, key: string) => {
+                if (key.toLowerCase() !== 'host') {
+                    proxyHeaders.set(key, value)
+                }
+            })
+
+            // Set the Host to Clerk's API (critical!)
+            proxyHeaders.set('Host', 'frontend-api.clerk.dev')
+
+            // Tell Clerk about the original host
+            proxyHeaders.set('X-Forwarded-Host', 'scout-ai-app.com')
+            proxyHeaders.set('X-Forwarded-Proto', 'https')
+            proxyHeaders.set('Origin', 'https://scout-ai-app.com')
+
+            // Clerk-specific headers
+            proxyHeaders.set('Clerk-Proxy-Url', process.env.NEXT_PUBLIC_CLERK_PROXY_URL || 'https://scout-ai-app.com/__clerk')
+            proxyHeaders.set('Clerk-Secret-Key', process.env.CLERK_SECRET_KEY || '')
+
+            // Forward client IP
+            const clientIp = req.ip || req.headers.get('X-Forwarded-For') || ''
+            if (clientIp) {
+                proxyHeaders.set('X-Forwarded-For', clientIp)
+            }
+
+            // Make the request to Clerk
+            const clerkResponse = await fetch(targetUrl, {
+                method: req.method,
+                headers: proxyHeaders,
+                body: ['GET', 'HEAD'].includes(req.method) ? null : req.body,
+            })
+
+            // Return Clerk's response
+            return new NextResponse(clerkResponse.body, {
+                status: clerkResponse.status,
+                headers: clerkResponse.headers,
+            })
+        } catch (error) {
+            console.error('[Clerk Proxy] Error:', error)
+            return new NextResponse('Proxy Error', { status: 500 })
         }
-
-        const proxyUrl = new URL(req.url)
-        proxyUrl.host = 'frontend-api.clerk.dev'
-        proxyUrl.port = '443'
-        proxyUrl.protocol = 'https'
-        proxyUrl.pathname = proxyUrl.pathname.replace('/__clerk', '')
-
-        return NextResponse.rewrite(proxyUrl, {
-            request: { headers: proxyHeaders },
-        })
     }
     return null
 }
@@ -56,9 +80,9 @@ const clerkHandler = clerkMiddleware(async (auth, req) => {
 })
 
 // Main middleware: Check proxy first, then Clerk
-export default function middleware(req: any) {
+export default async function middleware(req: any) {
     // First check if it's a proxy request
-    const proxyResponse = proxyMiddleware(req)
+    const proxyResponse = await proxyMiddleware(req)
     if (proxyResponse) {
         return proxyResponse
     }
