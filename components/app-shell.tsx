@@ -322,10 +322,11 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
           {/* Alpha pages render directly */}
           {activeView === "morning-briefing" && <MorningPlanDashboard />}
           {activeView === "daily-outreach" && <MorningBriefingDashboard />}
+          {activeView === "signals" && <SignalsView />}
           {activeView === "settings" && <SettingsView />}
 
           {/* Non-Alpha pages get "Feature in Development" watermark */}
-          {["signals", "network", "territory", "calendar", "performance", "notes"].includes(activeView) && (
+          {["network", "territory", "calendar", "performance", "notes"].includes(activeView) && (
             <div className="relative flex-1 overflow-hidden flex flex-col">
               {/* Watermark overlay */}
               <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden">
@@ -337,7 +338,6 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
                 </span>
               </div>
               {/* Page content renders beneath the watermark */}
-              {activeView === "signals" && <SignalsView />}
               {activeView === "network" && <NetworkView />}
               {activeView === "territory" && <TerritoryView />}
               {activeView === "calendar" && <CalendarView />}
