@@ -147,14 +147,8 @@ function adaptBriefingTarget(t: BriefingTarget, batchNum: number): MorningQueueT
 export async function getMorningQueue(): Promise<MorningQueueTarget[]> {
   try {
     // 1. Fetch from Authoritative Backend API via Next.js Proxy (injects Clerk token)
-    const response = await fetch("/api/briefing", { cache: 'no-store' })
-
-    if (!response.ok) {
-      console.error(`[Queue] Briefing API failed: ${response.status} ${response.statusText}`)
-      return []
-    }
-
-    const data: BriefingResponse = await response.json()
+    // Refactored to use apiRequest to support Mock Mode interception
+    const data = await apiRequest<BriefingResponse>("/api/briefing")
 
     // 2. Adapt to Legacy Interface
     const rawTargets = data.targets || []

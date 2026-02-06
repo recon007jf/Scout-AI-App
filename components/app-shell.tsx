@@ -249,7 +249,7 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
                   </>
                 ) : (
                   React.createElement(item.icon, {
-                    className: "w-10 h-10 transition-all",
+                    className: "w-7 h-7 transition-all",
                     style: { opacity: isActive ? 1 : 0.6 },
                     strokeWidth: 1.5
                   })
@@ -277,7 +277,10 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
           <div className="px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div>
-                <h1 className="text-xl font-semibold text-foreground">Scout</h1>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-semibold text-foreground">Scout</h1>
+                  <span className="text-sm font-semibold text-red-500 tracking-wide">Alpha Testing</span>
+                </div>
                 <p className="text-xs text-muted-foreground">by Pacific AI Systems</p>
               </div>
             </div>
@@ -316,15 +319,32 @@ export function AppShell({ children, initialView = "morning-briefing" }: AppShel
 
         {/* Content */}
         <main className="relative flex-1 overflow-hidden flex flex-col">
+          {/* Alpha pages render directly */}
           {activeView === "morning-briefing" && <MorningPlanDashboard />}
           {activeView === "daily-outreach" && <MorningBriefingDashboard />}
-          {activeView === "signals" && <SignalsView />}
-          {activeView === "network" && <NetworkView />}
-          {activeView === "territory" && <TerritoryView />}
-          {activeView === "calendar" && <CalendarView />}
-          {activeView === "performance" && <PerformanceView />}
-          {activeView === "notes" && <NotesView />}
           {activeView === "settings" && <SettingsView />}
+
+          {/* Non-Alpha pages get "Feature in Development" watermark */}
+          {["signals", "network", "territory", "calendar", "performance", "notes"].includes(activeView) && (
+            <div className="relative flex-1 overflow-hidden flex flex-col">
+              {/* Watermark overlay */}
+              <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center overflow-hidden">
+                <span
+                  className="text-[5rem] md:text-[7rem] font-black uppercase tracking-widest text-white/[0.07] select-none whitespace-nowrap leading-tight text-center"
+                  style={{ transform: "rotate(-25deg)" }}
+                >
+                  Feature in<br />Development
+                </span>
+              </div>
+              {/* Page content renders beneath the watermark */}
+              {activeView === "signals" && <SignalsView />}
+              {activeView === "network" && <NetworkView />}
+              {activeView === "territory" && <TerritoryView />}
+              {activeView === "calendar" && <CalendarView />}
+              {activeView === "performance" && <PerformanceView />}
+              {activeView === "notes" && <NotesView />}
+            </div>
+          )}
         </main>
       </div>
 
